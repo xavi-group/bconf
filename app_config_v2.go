@@ -10,298 +10,75 @@ import (
 	"time"
 )
 
-func NewAppConfig(appName, appDescription string) *AppConfig {
-	return &AppConfig{
-		appName:          appName,
-		appDescription:   appDescription,
-		fieldSets:        map[string]*FieldSet{},
-		orderedFieldSets: FieldSets{},
-		loaders:          []Loader{},
+// NewAppConfigV2 ...
+func NewAppConfigV2(appName, appDescription string, options ...ConfigOption) *AppConfigV2 {
+	warnings := []string{}
+	loaders := []Loader{}
+
+	for _, option := range options {
+		switch option.OptionType() {
+		case configOptionTypeEnvironmentLoader:
+			if castOption, ok := option.(configOptionEnvironmentLoader); ok {
+				loaders = append(loaders, castOption.Loader())
+			} else {
+				warnings = append(warnings, "problem casting environment loader option")
+			}
+		case configOptionTypeFlagLoader:
+			if castOption, ok := option.(configOptionFlagLoader); ok {
+				loaders = append(loaders, castOption.Loader())
+			} else {
+				warnings = append(warnings, "problem casting flag loader option")
+			}
+		case configOptionTypeJSONFileLoader:
+			if castOption, ok := option.(configOptionJSONFileLoader); ok {
+				loaders = append(loaders, castOption.Loader())
+			} else {
+				warnings = append(warnings, "problem casting JSON-file loader option")
+			}
+		default:
+			warnings = append(warnings, fmt.Sprintf("unsupported config option '%s'", option.OptionType()))
+		}
 	}
+
+	config := &AppConfigV2{
+		fieldSets:        map[string]*FieldSet{},
+		name:             appName,
+		description:      appDescription,
+		fieldSetGroups:   fieldSetGroups{},
+		loaders:          loaders,
+		warnings:         warnings,
+		orderedFieldSets: FieldSets{},
+	}
+
+	return config
 }
 
-type AppConfig struct {
+// AppConfigV2 ...
+type AppConfigV2 struct {
 	fieldSets        map[string]*FieldSet
-	appName          string
-	appDescription   string
+	name             string
+	description      string
+	fieldSetGroups   fieldSetGroups
 	loaders          []Loader
+	warnings         []string
 	orderedFieldSets FieldSets
 	fieldSetLock     sync.Mutex
-	register         sync.Once
-	registered       bool
+	loaded           bool
 }
 
-func (c *AppConfig) AppName() string {
-	return c.appName
+func (c *AppConfigV2) AppName() string {
+	return c.name
 }
 
-func (c *AppConfig) AppDescription() string {
-	return c.appDescription
+func (c *AppConfigV2) AppDescription() string {
+	return c.description
 }
 
-func (c *AppConfig) SetLoaders(loaders ...Loader) []error {
-	errs := []error{}
-
-	clonedLoaders := make([]Loader, len(loaders))
-	for index, loader := range loaders {
-		clonedLoaders[index] = loader.CloneLoader()
-	}
-
-	loaderNames := make(map[string]struct{}, len(clonedLoaders))
-	for _, loader := range clonedLoaders {
-		if _, found := loaderNames[loader.Name()]; found {
-			errs = append(errs, fmt.Errorf("duplicate loader name found: '%s'", loader.Name()))
-		}
-
-		loaderNames[loader.Name()] = struct{}{}
-	}
-
-	if len(errs) > 0 {
-		return errs
-	}
-
-	c.loaders = clonedLoaders
-
-	return nil
+func (c *AppConfigV2) AddFieldSetGroup(groupName string, fieldSets FieldSets) {
+	c.fieldSetGroups = append(c.fieldSetGroups, &fieldSetGroup{name: groupName, fieldSets: fieldSets})
 }
 
-func (c *AppConfig) AddFieldSet(fieldSet *FieldSet) []error {
-	return c.addFieldSet(fieldSet, true)
-}
-
-func (c *AppConfig) AddFieldSets(fieldSets ...*FieldSet) []error {
-	c.fieldSetLock.Lock()
-	defer c.fieldSetLock.Unlock()
-
-	errs := []error{}
-	addedFieldSets := []string{}
-
-	for _, fieldSet := range fieldSets {
-		if fieldSetErrs := c.addFieldSet(fieldSet, false); len(fieldSetErrs) > 0 {
-			errs = append(errs, fieldSetErrs...)
-			continue
-		}
-
-		addedFieldSets = append(addedFieldSets, fieldSet.Key)
-	}
-
-	if len(errs) > 0 {
-		for _, fieldSetKey := range addedFieldSets {
-			delete(c.fieldSets, fieldSetKey)
-		}
-
-		c.orderedFieldSets = c.orderedFieldSets[:len(c.orderedFieldSets)-len(addedFieldSets)]
-	}
-
-	return errs
-}
-
-func (c *AppConfig) AddField(fieldSetKey string, field *Field) []error {
-	c.fieldSetLock.Lock()
-	defer c.fieldSetLock.Unlock()
-
-	fieldSet, fieldSetFound := c.fieldSets[fieldSetKey]
-
-	if !fieldSetFound {
-		return []error{fmt.Errorf("no field-set found with key '%s'", fieldSetKey)}
-	}
-
-	if _, keyFound := c.fieldSets[fieldSetKey].fieldMap[field.Key]; keyFound {
-		return []error{fmt.Errorf("duplicate field key found: '%s'", field.Key)}
-	}
-
-	field = field.Clone()
-
-	if err := field.generateDefault(); err != nil {
-		return []error{fmt.Errorf("field default value generation error: %w", err)}
-	}
-
-	if validationErrors := field.validate(); len(validationErrors) > 0 {
-		return validationErrors
-	}
-
-	if err := c.checkForFieldDependencies(field, fieldSet); err != nil {
-		return []error{fmt.Errorf("field dependency error: %w", err)}
-	}
-
-	c.fieldSets[fieldSetKey].fieldMap[field.Key] = field
-
-	return nil
-}
-
-func (c *AppConfig) LoadFieldSet(fieldSetKey string) []error {
-	errs := []error{}
-
-	if !c.registered {
-		errs = append(errs, fmt.Errorf("LoadFieldSet cannot be called before the app-config has been registered"))
-		return errs
-	}
-
-	return c.loadFieldSet(fieldSetKey)
-}
-
-func (c *AppConfig) LoadField(fieldSetKey, fieldKey string) []error {
-	errs := []error{}
-
-	if !c.registered {
-		errs = append(errs, fmt.Errorf("LoadField cannot be called before the app-config has been registered"))
-		return errs
-	}
-
-	if _, fieldSetFound := c.fieldSets[fieldSetKey]; !fieldSetFound {
-		errs = append(errs, fmt.Errorf("field-set with key '%s' not found", fieldSetKey))
-		return errs
-	}
-
-	field, fieldKeyFound := c.fieldSets[fieldSetKey].fieldMap[fieldKey]
-	if !fieldKeyFound {
-		errs = append(errs, fmt.Errorf("field with key '%s' not found", fieldKey))
-		return errs
-	}
-
-	if load, err := c.shouldLoadField(field, fieldSetKey); err != nil {
-		errs = append(errs, err)
-		return errs
-	} else if !load {
-		errs = append(errs, fmt.Errorf("field load-conditions not met"))
-		return errs
-	}
-
-	for _, loader := range c.loaders {
-		value, found := loader.Get(fieldSetKey, fieldKey)
-		if !found {
-			continue
-		}
-
-		if err := field.set(loader.Name(), value); err != nil {
-			errs = append(errs, fmt.Errorf("field '%s' load error: %w", fieldKey, err))
-		}
-	}
-
-	return nil
-}
-
-func (c *AppConfig) SetField(fieldSetKey, fieldKey string, fieldValue any) error {
-	fieldSet, fieldSetFound := c.fieldSets[fieldSetKey]
-	if !fieldSetFound {
-		return fmt.Errorf("field-set with key '%s' not found", fieldSetKey)
-	}
-
-	field, fieldKeyFound := fieldSet.fieldMap[fieldKey]
-	if !fieldKeyFound {
-		return fmt.Errorf("field with key '%s' not found", fieldKey)
-	}
-
-	if err := field.setOverride(fieldValue); err != nil {
-		return fmt.Errorf("problem setting field value: %w", err)
-	}
-
-	return nil
-}
-
-// Register loads all defined field sets and optionally checks for and handles the help flag -h and --help.
-func (c *AppConfig) Register(handleHelpFlag bool) []error {
-	if handleHelpFlag && len(os.Args) > 1 && (os.Args[1] == "--help" || os.Args[1] == "-h") {
-		c.printHelpString()
-		os.Exit(0)
-	}
-
-	errs := []error{}
-
-	for _, fieldSet := range c.orderedFieldSets {
-		if fieldSetErrs := c.loadFieldSet(fieldSet.Key); len(fieldSetErrs) > 0 {
-			errs = append(errs, fieldSetErrs...)
-			return errs
-		}
-	}
-
-	c.registered = true
-
-	return nil
-}
-
-func (c *AppConfig) HelpString() string {
-	builder := strings.Builder{}
-
-	if c.appName != "" {
-		builder.WriteString(fmt.Sprintf("Usage of '%s':\n", c.appName))
-	} else {
-		builder.WriteString(fmt.Sprintf("Usage of '%s':\n", os.Args[0]))
-	}
-
-	if c.appDescription != "" {
-		builder.WriteString(fmt.Sprintf("%s\n\n", c.appDescription))
-	}
-
-	c.addFieldsToBuilder(&builder)
-
-	return builder.String()
-}
-
-func (c *AppConfig) ConfigMap() map[string]map[string]any {
-	configMap := map[string]map[string]any{}
-
-	for _, fieldSet := range c.fieldSets {
-		fieldSetMap := map[string]any{}
-
-		for _, field := range fieldSet.fieldMap {
-			val, err := field.getValue()
-
-			if err != nil {
-				continue
-			}
-
-			if field.Sensitive {
-				fieldSetMap[field.Key] = "<sensitive-value>"
-				continue
-			}
-
-			if field.Type == Duration {
-				val = val.(time.Duration).Milliseconds()
-				fieldSetMap[fmt.Sprintf("%s_ms", field.Key)] = val
-
-				continue
-			}
-
-			fieldSetMap[field.Key] = val
-		}
-
-		configMap[fieldSet.Key] = fieldSetMap
-	}
-
-	return configMap
-}
-
-func (c *AppConfig) GetFieldSetKeys() []string {
-	keys := make([]string, len(c.fieldSets))
-	idx := 0
-
-	for key := range c.fieldSets {
-		keys[idx] = key
-		idx++
-	}
-
-	return keys
-}
-
-func (c *AppConfig) GetFieldSetFieldKeys(fieldSetKey string) ([]string, error) {
-	fieldSet, found := c.fieldSets[fieldSetKey]
-	if !found {
-		return nil, fmt.Errorf("field-set not found with key: '%s'", fieldSetKey)
-	}
-
-	keys := make([]string, len(fieldSet.fieldMap))
-	idx := 0
-
-	for key := range c.fieldSets {
-		keys[idx] = key
-		idx++
-	}
-
-	return keys, nil
-}
-
-func (c *AppConfig) GetField(fieldSetKey, fieldKey string) (*Field, error) {
+func (c *AppConfigV2) GetField(fieldSetKey, fieldKey string) (*Field, error) {
 	fieldSet, found := c.fieldSets[fieldSetKey]
 	if !found {
 		return nil, fmt.Errorf("field-set not found with key '%s'", fieldSetKey)
@@ -315,7 +92,7 @@ func (c *AppConfig) GetField(fieldSetKey, fieldKey string) (*Field, error) {
 	return field, nil
 }
 
-func (c *AppConfig) GetString(fieldSetKey, fieldKey string) (string, error) {
+func (c *AppConfigV2) GetString(fieldSetKey, fieldKey string) (string, error) {
 	fieldValue, err := c.getFieldValue(fieldSetKey, fieldKey, String)
 	if err != nil {
 		return "", err
@@ -326,7 +103,7 @@ func (c *AppConfig) GetString(fieldSetKey, fieldKey string) (string, error) {
 	return val, nil
 }
 
-func (c *AppConfig) GetStrings(fieldSetKey, fieldKey string) ([]string, error) {
+func (c *AppConfigV2) GetStrings(fieldSetKey, fieldKey string) ([]string, error) {
 	fieldValue, err := c.getFieldValue(fieldSetKey, fieldKey, Strings)
 	if err != nil {
 		return nil, err
@@ -337,7 +114,7 @@ func (c *AppConfig) GetStrings(fieldSetKey, fieldKey string) ([]string, error) {
 	return val, nil
 }
 
-func (c *AppConfig) GetInt(fieldSetKey, fieldKey string) (int, error) {
+func (c *AppConfigV2) GetInt(fieldSetKey, fieldKey string) (int, error) {
 	fieldValue, err := c.getFieldValue(fieldSetKey, fieldKey, Int)
 	if err != nil {
 		return 0, err
@@ -348,7 +125,7 @@ func (c *AppConfig) GetInt(fieldSetKey, fieldKey string) (int, error) {
 	return val, nil
 }
 
-func (c *AppConfig) GetInts(fieldSetKey, fieldKey string) ([]int, error) {
+func (c *AppConfigV2) GetInts(fieldSetKey, fieldKey string) ([]int, error) {
 	fieldValue, err := c.getFieldValue(fieldSetKey, fieldKey, Ints)
 	if err != nil {
 		return nil, err
@@ -359,7 +136,7 @@ func (c *AppConfig) GetInts(fieldSetKey, fieldKey string) ([]int, error) {
 	return val, nil
 }
 
-func (c *AppConfig) GetBool(fieldSetKey, fieldKey string) (bool, error) {
+func (c *AppConfigV2) GetBool(fieldSetKey, fieldKey string) (bool, error) {
 	fieldValue, err := c.getFieldValue(fieldSetKey, fieldKey, Bool)
 	if err != nil {
 		return false, err
@@ -370,7 +147,7 @@ func (c *AppConfig) GetBool(fieldSetKey, fieldKey string) (bool, error) {
 	return val, nil
 }
 
-func (c *AppConfig) GetBools(fieldSetKey, fieldKey string) ([]bool, error) {
+func (c *AppConfigV2) GetBools(fieldSetKey, fieldKey string) ([]bool, error) {
 	fieldValue, err := c.getFieldValue(fieldSetKey, fieldKey, Bools)
 	if err != nil {
 		return nil, err
@@ -381,7 +158,7 @@ func (c *AppConfig) GetBools(fieldSetKey, fieldKey string) ([]bool, error) {
 	return val, nil
 }
 
-func (c *AppConfig) GetTime(fieldSetKey, fieldKey string) (time.Time, error) {
+func (c *AppConfigV2) GetTime(fieldSetKey, fieldKey string) (time.Time, error) {
 	fieldValue, err := c.getFieldValue(fieldSetKey, fieldKey, Time)
 	if err != nil {
 		return time.Time{}, err
@@ -392,7 +169,7 @@ func (c *AppConfig) GetTime(fieldSetKey, fieldKey string) (time.Time, error) {
 	return val, nil
 }
 
-func (c *AppConfig) GetTimes(fieldSetKey, fieldKey string) ([]time.Time, error) {
+func (c *AppConfigV2) GetTimes(fieldSetKey, fieldKey string) ([]time.Time, error) {
 	fieldValue, err := c.getFieldValue(fieldSetKey, fieldKey, Times)
 	if err != nil {
 		return nil, err
@@ -403,7 +180,7 @@ func (c *AppConfig) GetTimes(fieldSetKey, fieldKey string) ([]time.Time, error) 
 	return val, nil
 }
 
-func (c *AppConfig) GetDuration(fieldSetKey, fieldKey string) (time.Duration, error) {
+func (c *AppConfigV2) GetDuration(fieldSetKey, fieldKey string) (time.Duration, error) {
 	fieldValue, err := c.getFieldValue(fieldSetKey, fieldKey, Duration)
 	if err != nil {
 		return 0, err
@@ -414,7 +191,7 @@ func (c *AppConfig) GetDuration(fieldSetKey, fieldKey string) (time.Duration, er
 	return val, nil
 }
 
-func (c *AppConfig) GetDurations(fieldSetKey, fieldKey string) ([]time.Duration, error) {
+func (c *AppConfigV2) GetDurations(fieldSetKey, fieldKey string) ([]time.Duration, error) {
 	fieldValue, err := c.getFieldValue(fieldSetKey, fieldKey, Durations)
 	if err != nil {
 		return nil, err
@@ -425,7 +202,60 @@ func (c *AppConfig) GetDurations(fieldSetKey, fieldKey string) ([]time.Duration,
 	return val, nil
 }
 
-func (c *AppConfig) FillStruct(configStruct any) (err error) {
+func (c *AppConfigV2) Load(options ...LoadOption) []error {
+	// -- Add field set groups --
+
+	groupAddErrors := []error{}
+
+	for _, group := range c.fieldSetGroups {
+		if errs := c.addFieldSets(group.fieldSets...); len(errs) > 0 {
+			err := fmt.Errorf("problem(s) adding '%s' field-set group: %v\n", group.name, errs)
+
+			groupAddErrors = append(groupAddErrors, err)
+		}
+	}
+
+	if len(groupAddErrors) > 0 {
+		return groupAddErrors
+	}
+
+	// -- Parse load options --
+
+	handleHelpFlag := false
+
+	for _, option := range options {
+		switch option.OptionType() {
+		case loadOptionTypeHandleHelpFlag:
+			handleHelpFlag = true
+		default:
+			c.warnings = append(c.warnings, fmt.Sprintf("unsupported load option '%s'", option.OptionType()))
+		}
+	}
+
+	// -- Output help message if conditions are satisfied --
+
+	if handleHelpFlag && len(os.Args) > 1 && (os.Args[1] == "--help" || os.Args[1] == "-h") {
+		c.printHelpString()
+		os.Exit(0)
+	}
+
+	// -- Load field-sets --
+
+	loadErrors := []error{}
+
+	for _, fieldSet := range c.orderedFieldSets {
+		if fieldSetErrs := c.loadFieldSet(fieldSet.Key); len(fieldSetErrs) > 0 {
+			loadErrors = append(loadErrors, fieldSetErrs...)
+			return loadErrors
+		}
+	}
+
+	c.loaded = true
+
+	return nil
+}
+
+func (c *AppConfigV2) FillStruct(configStruct any) (err error) {
 	defer func() {
 		if r := recover(); r != nil {
 			err = fmt.Errorf("problem filling struct: %s", r)
@@ -443,17 +273,23 @@ func (c *AppConfig) FillStruct(configStruct any) (err error) {
 		return fmt.Errorf("FillStruct expects a pointer to a struct, found pointer to '%s'", configStructValue.Kind())
 	}
 
+	baseFieldSetFound := false
+	baseFieldSet := ""
+
 	configStructField := configStructValue.FieldByName("ConfigStruct")
-	if !configStructField.IsValid() || configStructField.Type().PkgPath() != "github.com/rheisen/bconf" {
-		return fmt.Errorf("FillStruct expects a struct with a bconf.ConfigStruct field, none found")
-	}
 
-	configStructFieldType, _ := configStructType.FieldByName("ConfigStruct")
+	if configStructField.IsValid() && configStructField.Type().PkgPath() == "github.com/rheisen/bconf" {
+		var configStructFieldType reflect.StructField
 
-	baseFieldSet := configStructFieldType.Tag.Get("bconf")
+		configStructFieldType, baseFieldSetFound = configStructType.FieldByName("ConfigStruct")
 
-	if overrideValue := configStructField.FieldByName("FieldSet"); overrideValue.String() != "" {
-		baseFieldSet = overrideValue.String()
+		if baseFieldSetFound {
+			baseFieldSet = configStructFieldType.Tag.Get("bconf")
+
+			if overrideValue := configStructField.FieldByName("FieldSet"); overrideValue.String() != "" {
+				baseFieldSet = overrideValue.String()
+			}
+		}
 	}
 
 	for i := 0; i < configStructValue.NumField(); i++ {
@@ -507,9 +343,64 @@ func (c *AppConfig) FillStruct(configStruct any) (err error) {
 	return nil
 }
 
-// -- Private methods --
+func (c *AppConfigV2) ConfigMap() map[string]map[string]any {
+	configMap := map[string]map[string]any{}
 
-func (c *AppConfig) addFieldSet(fieldSet *FieldSet, lock bool) []error {
+	for _, fieldSet := range c.fieldSets {
+		fieldSetMap := map[string]any{}
+
+		for _, field := range fieldSet.fieldMap {
+			val, err := field.getValue()
+
+			if err != nil {
+				continue
+			}
+
+			if field.Sensitive {
+				fieldSetMap[field.Key] = "<sensitive-value>"
+				continue
+			}
+
+			if field.Type == Duration {
+				// TODO: use higher time grain if duration > 1 hour
+				val = val.(time.Duration).Milliseconds()
+				fieldSetMap[fmt.Sprintf("%s_ms", field.Key)] = val
+
+				continue
+			}
+
+			fieldSetMap[field.Key] = val
+		}
+
+		configMap[fieldSet.Key] = fieldSetMap
+	}
+
+	return configMap
+}
+
+func (c *AppConfigV2) HelpString() string {
+	builder := strings.Builder{}
+
+	if c.name != "" {
+		builder.WriteString(fmt.Sprintf("Usage of '%s':\n", c.name))
+	} else {
+		builder.WriteString(fmt.Sprintf("Usage of '%s':\n", os.Args[0]))
+	}
+
+	if c.description != "" {
+		builder.WriteString(fmt.Sprintf("%s\n\n", c.description))
+	}
+
+	c.addFieldsToBuilder(&builder)
+
+	return builder.String()
+}
+
+func (c *AppConfigV2) addFieldSets(fieldSets ...*FieldSet) []error {
+	return nil
+}
+
+func (c *AppConfigV2) addFieldSet(fieldSet *FieldSet, lock bool) []error {
 	if lock {
 		c.fieldSetLock.Lock()
 		defer c.fieldSetLock.Unlock()
@@ -547,7 +438,7 @@ func (c *AppConfig) addFieldSet(fieldSet *FieldSet, lock bool) []error {
 	return nil
 }
 
-func (c *AppConfig) checkForFieldSetStructuralIntegrity(fieldSet *FieldSet) []error {
+func (c *AppConfigV2) checkForFieldSetStructuralIntegrity(fieldSet *FieldSet) []error {
 	errs := []error{}
 
 	if fieldSetErrs := fieldSet.validate(); len(fieldSetErrs) > 0 {
@@ -559,7 +450,7 @@ func (c *AppConfig) checkForFieldSetStructuralIntegrity(fieldSet *FieldSet) []er
 	return errs
 }
 
-func (c *AppConfig) checkForFieldSetDependencies(fieldSet *FieldSet) []error {
+func (c *AppConfigV2) checkForFieldSetDependencies(fieldSet *FieldSet) []error {
 	errs := []error{}
 
 	for _, loadCondition := range fieldSet.LoadConditions {
@@ -599,7 +490,7 @@ func (c *AppConfig) checkForFieldSetDependencies(fieldSet *FieldSet) []error {
 	return errs
 }
 
-func (c *AppConfig) checkForFieldDependencies(field *Field, parent *FieldSet) error {
+func (c *AppConfigV2) checkForFieldDependencies(field *Field, parent *FieldSet) error {
 	if len(field.LoadConditions) > 0 {
 		for _, loadCondition := range field.LoadConditions {
 			var fieldSetDependency *FieldSet
@@ -638,7 +529,7 @@ func (c *AppConfig) checkForFieldDependencies(field *Field, parent *FieldSet) er
 	return nil
 }
 
-func (c *AppConfig) generateFieldSetDefaultValues(fieldSet *FieldSet) []error {
+func (c *AppConfigV2) generateFieldSetDefaultValues(fieldSet *FieldSet) []error {
 	errs := []error{}
 
 	if fieldSetErrs := fieldSet.generateFieldDefaults(); len(fieldSetErrs) > 0 {
@@ -653,7 +544,7 @@ func (c *AppConfig) generateFieldSetDefaultValues(fieldSet *FieldSet) []error {
 	return errs
 }
 
-func (c *AppConfig) checkForFieldSetFieldsValidity(fieldSet *FieldSet) []error {
+func (c *AppConfigV2) checkForFieldSetFieldsValidity(fieldSet *FieldSet) []error {
 	errs := []error{}
 
 	if fieldSetErrs := fieldSet.validateFields(); len(fieldSetErrs) > 0 {
@@ -668,7 +559,7 @@ func (c *AppConfig) checkForFieldSetFieldsValidity(fieldSet *FieldSet) []error {
 	return errs
 }
 
-func (c *AppConfig) loadFieldSet(fieldSetKey string) []error {
+func (c *AppConfigV2) loadFieldSet(fieldSetKey string) []error {
 	errs := []error{}
 
 	fieldSet, fieldSetFound := c.fieldSets[fieldSetKey]
@@ -722,7 +613,7 @@ func (c *AppConfig) loadFieldSet(fieldSetKey string) []error {
 	return errs
 }
 
-func (c *AppConfig) shouldLoadFieldSet(fieldSet *FieldSet) (bool, error) {
+func (c *AppConfigV2) shouldLoadFieldSet(fieldSet *FieldSet) (bool, error) {
 	loadFieldSet := true
 
 	if len(fieldSet.LoadConditions) > 0 {
@@ -760,7 +651,7 @@ func (c *AppConfig) shouldLoadFieldSet(fieldSet *FieldSet) (bool, error) {
 	return loadFieldSet, nil
 }
 
-func (c *AppConfig) shouldLoadField(field *Field, fieldSetKey string) (bool, error) {
+func (c *AppConfigV2) shouldLoadField(field *Field, fieldSetKey string) (bool, error) {
 	loadField := true
 
 	if len(field.LoadConditions) > 0 {
@@ -802,7 +693,7 @@ func (c *AppConfig) shouldLoadField(field *Field, fieldSetKey string) (bool, err
 	return loadField, nil
 }
 
-func (c *AppConfig) getFieldValue(fieldSetKey, fieldKey, expectedType string) (any, error) {
+func (c *AppConfigV2) getFieldValue(fieldSetKey, fieldKey, expectedType string) (any, error) {
 	field, err := c.GetField(fieldSetKey, fieldKey)
 	if err != nil {
 		return nil, err
@@ -820,13 +711,11 @@ func (c *AppConfig) getFieldValue(fieldSetKey, fieldKey, expectedType string) (a
 	return fieldValue, nil
 }
 
-type fieldEntry struct {
-	fieldSetKey    string
-	field          *Field
-	loadConditions LoadConditions
+func (c *AppConfigV2) printHelpString() {
+	fmt.Printf("%s", c.HelpString())
 }
 
-func (c *AppConfig) fields() map[string]*fieldEntry {
+func (c *AppConfigV2) fields() map[string]*fieldEntry {
 	fields := map[string]*fieldEntry{}
 
 	for fieldSetKey, fieldSet := range c.fieldSets {
@@ -848,7 +737,7 @@ func (c *AppConfig) fields() map[string]*fieldEntry {
 	return fields
 }
 
-func (c *AppConfig) addFieldsToBuilder(builder *strings.Builder) {
+func (c *AppConfigV2) addFieldsToBuilder(builder *strings.Builder) {
 	fields := c.fields()
 	if len(fields) > 0 {
 		keys := make([]string, len(fields))
@@ -904,7 +793,7 @@ func (c *AppConfig) addFieldsToBuilder(builder *strings.Builder) {
 	}
 }
 
-func (c *AppConfig) fieldHelpString(fields map[string]*fieldEntry, key string) string {
+func (c *AppConfigV2) fieldHelpString(fields map[string]*fieldEntry, key string) string {
 	entry := fields[key]
 	field := entry.field
 	loadConditions := entry.loadConditions
@@ -963,8 +852,4 @@ func (c *AppConfig) fieldHelpString(fields map[string]*fieldEntry, key string) s
 	}
 
 	return builder.String()
-}
-
-func (c *AppConfig) printHelpString() {
-	fmt.Printf("%s", c.HelpString())
 }
