@@ -15,7 +15,7 @@ type ConfigOption interface {
 }
 
 func WithEnvironmentLoader(keyPrefix string) ConfigOption {
-	return &configOptionEnvironmentLoader{
+	return configOptionEnvironmentLoader{
 		keyPrefix: keyPrefix,
 	}
 }
@@ -27,23 +27,23 @@ func WithFlagLoader(keyPrefix string) ConfigOption {
 }
 
 func WithJSONFileLoader(decoder JSONUnmarshal, filePaths ...string) ConfigOption {
-	return &configOptionJSONFileLoader{}
+	return configOptionJSONFileLoader{}
 }
 
 func WithAppID(appID string) ConfigOption {
-	return &configOptionAppID{id: appID}
+	return configOptionAppID{id: appID}
 }
 
 func WithAppIDFunc(appIDFunc func() string) ConfigOption {
-	return &configOptionAppIDFunc{idFunc: appIDFunc}
+	return configOptionAppIDFunc{idFunc: appIDFunc}
 }
 
 func WithAppVersion(appVersion string) ConfigOption {
-	return &configOptionAppVersion{version: appVersion}
+	return configOptionAppVersion{version: appVersion}
 }
 
 func WithAppVersionFunc(appVersionFunc func() string) ConfigOption {
-	return &configOptionAppVersionFunc{versionFunc: appVersionFunc}
+	return configOptionAppVersionFunc{versionFunc: appVersionFunc}
 }
 
 type configOptionEnvironmentLoader struct {
