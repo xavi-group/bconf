@@ -6,25 +6,25 @@ const (
 )
 
 type LoadOption interface {
-	OptionType() string
+	LoadOptionType() string
 }
 
 func WithHelpFlagHandler() LoadOption {
-	return &loadOptionHandleHelpFlag{}
+	return loadOptionHandleHelpFlag{}
 }
 
 func WithGenerateFlagHandler() LoadOption {
-	return &loadOptionHandleGenerateFlag{}
+	return loadOptionHandleGenerateFlag{}
 }
 
 type loadOptionHandleHelpFlag struct{}
 
-func (o loadOptionHandleHelpFlag) OptionType() string {
+func (o loadOptionHandleHelpFlag) LoadOptionType() string {
 	return loadOptionTypeHandleHelpFlag
 }
 
 type loadOptionHandleGenerateFlag struct{}
 
-func (o loadOptionHandleGenerateFlag) OptionType() string {
+func (o loadOptionHandleGenerateFlag) LoadOptionType() string {
 	return loadOptionTypeHandleGenerateFlag
 }

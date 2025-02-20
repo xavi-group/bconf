@@ -261,11 +261,11 @@ func (c *AppConfigV2) Load(options ...LoadOption) []error {
 	handleHelpFlag := false
 
 	for _, option := range options {
-		switch option.OptionType() {
+		switch option.LoadOptionType() {
 		case loadOptionTypeHandleHelpFlag:
 			handleHelpFlag = true
 		default:
-			c.warnings = append(c.warnings, fmt.Sprintf("unsupported load option '%s'", option.OptionType()))
+			c.warnings = append(c.warnings, fmt.Sprintf("unsupported load option '%s'", option.LoadOptionType()))
 		}
 	}
 
@@ -384,13 +384,17 @@ func (c *AppConfigV2) ConfigMap() map[string]map[string]any {
 	configMap := map[string]map[string]any{}
 
 	for _, fieldSet := range c.fieldSets {
-		if fieldSet.Key == "app" {
-			continue
-		}
-
 		fieldSetMap := map[string]any{}
 
 		for _, field := range fieldSet.fieldMap {
+			location := fmt.Sprintf("%s.%s", fieldSet.Key, field.Key)
+
+			switch location {
+			case "app.name":
+			case "app.description":
+				continue
+			}
+
 			val, err := field.getValue()
 
 			if err != nil {

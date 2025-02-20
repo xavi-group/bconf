@@ -21,7 +21,7 @@ func WithEnvironmentLoader(keyPrefix string) ConfigOption {
 }
 
 func WithFlagLoader(keyPrefix string) ConfigOption {
-	return &configOptionFlagLoader{
+	return configOptionFlagLoader{
 		keyPrefix: keyPrefix,
 	}
 }
