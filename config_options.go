@@ -31,19 +31,19 @@ func WithJSONFileLoader(decoder JSONUnmarshal, filePaths ...string) ConfigOption
 }
 
 func WithAppID(appID string) ConfigOption {
-	return &configOptionAppID{}
+	return &configOptionAppID{id: appID}
 }
 
 func WithAppIDFunc(appIDFunc func() string) ConfigOption {
-	return &configOptionAppIDFunc{}
+	return &configOptionAppIDFunc{idFunc: appIDFunc}
 }
 
 func WithAppVersion(appVersion string) ConfigOption {
-	return &configOptionAppVersion{}
+	return &configOptionAppVersion{version: appVersion}
 }
 
 func WithAppVersionFunc(appVersionFunc func() string) ConfigOption {
-	return &configOptionAppVersionFunc{}
+	return &configOptionAppVersionFunc{versionFunc: appVersionFunc}
 }
 
 type configOptionEnvironmentLoader struct {

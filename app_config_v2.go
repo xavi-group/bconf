@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"reflect"
+	"slices"
 	"sort"
 	"strings"
 	"sync"
@@ -383,6 +384,10 @@ func (c *AppConfigV2) ConfigMap() map[string]map[string]any {
 	configMap := map[string]map[string]any{}
 
 	for _, fieldSet := range c.fieldSets {
+		if fieldSet.Key == "app" {
+			continue
+		}
+
 		fieldSetMap := map[string]any{}
 
 		for _, field := range fieldSet.fieldMap {
@@ -412,6 +417,10 @@ func (c *AppConfigV2) ConfigMap() map[string]map[string]any {
 	}
 
 	return configMap
+}
+
+func (c *AppConfigV2) Warnings() []string {
+	return slices.Clone(c.warnings)
 }
 
 func (c *AppConfigV2) HelpString() string {
