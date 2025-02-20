@@ -15,30 +15,64 @@ func NewAppConfigV2(appName, appDescription string, options ...ConfigOption) *Ap
 	warnings := []string{}
 	loaders := []Loader{}
 
+	appVersion := "unknown"
+	appID := "undefined"
+
 	for _, option := range options {
-		switch option.OptionType() {
-		case configOptionTypeEnvironmentLoader:
+		switch option.ConfigOptionType() {
+		case configOptionTypeLoaderEnvironment:
 			if castOption, ok := option.(configOptionEnvironmentLoader); ok {
 				loaders = append(loaders, castOption.Loader())
 			} else {
 				warnings = append(warnings, "problem casting environment loader option")
 			}
-		case configOptionTypeFlagLoader:
+		case configOptionTypeLoaderFlag:
 			if castOption, ok := option.(configOptionFlagLoader); ok {
 				loaders = append(loaders, castOption.Loader())
 			} else {
 				warnings = append(warnings, "problem casting flag loader option")
 			}
-		case configOptionTypeJSONFileLoader:
+		case configOptionTypeLoaderJSONFile:
 			if castOption, ok := option.(configOptionJSONFileLoader); ok {
 				loaders = append(loaders, castOption.Loader())
 			} else {
 				warnings = append(warnings, "problem casting JSON-file loader option")
 			}
+		case configOptionTypeAppID:
+			if castOption, ok := option.(configOptionAppID); ok {
+				appID = castOption.id
+			} else {
+				warnings = append(warnings, "problem casting app ID option")
+			}
+		case configOptionTypeAppIDFunc:
+			if castOption, ok := option.(configOptionAppIDFunc); ok {
+				appID = castOption.idFunc()
+			} else {
+				warnings = append(warnings, "problem casting app ID func option")
+			}
+		case configOptionTypeAppVersion:
+			if castOption, ok := option.(configOptionAppVersion); ok {
+				appVersion = castOption.version
+			} else {
+				warnings = append(warnings, "problem casting app version option")
+			}
+		case configOptionTypeAppVersionFunc:
+			if castOption, ok := option.(configOptionAppVersionFunc); ok {
+				appVersion = castOption.versionFunc()
+			} else {
+				warnings = append(warnings, "problem casting app version func option")
+			}
 		default:
-			warnings = append(warnings, fmt.Sprintf("unsupported config option '%s'", option.OptionType()))
+			warnings = append(warnings, fmt.Sprintf("unsupported config option '%s'", option.ConfigOptionType()))
 		}
 	}
+
+	appFieldSet := FSB().Key("app").Fields(
+		FB().Key("name").Type(String).Default(appName).Create(),
+		FB().Key("description").Type(String).Default(appDescription).Create(),
+		FB().Key("version").Type(String).Default(appVersion).Create(),
+		FB().Key("id").Type(String).Default(appID).Create(),
+	).Create()
 
 	config := &AppConfigV2{
 		fieldSets:        map[string]*FieldSet{},
@@ -49,6 +83,8 @@ func NewAppConfigV2(appName, appDescription string, options ...ConfigOption) *Ap
 		warnings:         warnings,
 		orderedFieldSets: FieldSets{},
 	}
+
+	config.AddFieldSetGroup("app", FieldSets{appFieldSet})
 
 	return config
 }

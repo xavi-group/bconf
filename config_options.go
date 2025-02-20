@@ -1,13 +1,17 @@
 package bconf
 
 const (
-	configOptionTypeEnvironmentLoader = "loader_environment"
-	configOptionTypeFlagLoader        = "loader_flag"
-	configOptionTypeJSONFileLoader    = "loader_json"
+	configOptionTypeLoaderEnvironment = "loader_environment"
+	configOptionTypeLoaderFlag        = "loader_flag"
+	configOptionTypeLoaderJSONFile    = "loader_json"
+	configOptionTypeAppVersionFunc    = "app_version_func"
+	configOptionTypeAppVersion        = "app_version"
+	configOptionTypeAppIDFunc         = "app_id_func"
+	configOptionTypeAppID             = "app_id"
 )
 
 type ConfigOption interface {
-	OptionType() string
+	ConfigOptionType() string
 }
 
 func WithEnvironmentLoader(keyPrefix string) ConfigOption {
@@ -26,12 +30,28 @@ func WithJSONFileLoader(decoder JSONUnmarshal, filePaths ...string) ConfigOption
 	return &configOptionJSONFileLoader{}
 }
 
+func WithAppID(appID string) ConfigOption {
+	return &configOptionAppID{}
+}
+
+func WithAppIDFunc(appIDFunc func() string) ConfigOption {
+	return &configOptionAppIDFunc{}
+}
+
+func WithAppVersion(appVersion string) ConfigOption {
+	return &configOptionAppVersion{}
+}
+
+func WithAppVersionFunc(appVersionFunc func() string) ConfigOption {
+	return &configOptionAppVersionFunc{}
+}
+
 type configOptionEnvironmentLoader struct {
 	keyPrefix string
 }
 
-func (o configOptionEnvironmentLoader) OptionType() string {
-	return configOptionTypeEnvironmentLoader
+func (o configOptionEnvironmentLoader) ConfigOptionType() string {
+	return configOptionTypeLoaderEnvironment
 }
 
 func (o configOptionEnvironmentLoader) Loader() Loader {
@@ -42,8 +62,8 @@ type configOptionFlagLoader struct {
 	keyPrefix string
 }
 
-func (o configOptionFlagLoader) OptionType() string {
-	return configOptionTypeFlagLoader
+func (o configOptionFlagLoader) ConfigOptionType() string {
+	return configOptionTypeLoaderFlag
 }
 
 func (o configOptionFlagLoader) Loader() Loader {
@@ -55,10 +75,42 @@ type configOptionJSONFileLoader struct {
 	filePaths []string
 }
 
-func (o configOptionJSONFileLoader) OptionType() string {
-	return configOptionTypeJSONFileLoader
+func (o configOptionJSONFileLoader) ConfigOptionType() string {
+	return configOptionTypeLoaderJSONFile
 }
 
 func (o configOptionJSONFileLoader) Loader() Loader {
 	return NewJSONFileLoaderWithAttributes(o.decoder, o.filePaths...)
+}
+
+type configOptionAppVersion struct {
+	version string
+}
+
+func (o configOptionAppVersion) ConfigOptionType() string {
+	return configOptionTypeAppVersion
+}
+
+type configOptionAppVersionFunc struct {
+	versionFunc func() string
+}
+
+func (o configOptionAppVersionFunc) ConfigOptionType() string {
+	return configOptionTypeAppVersionFunc
+}
+
+type configOptionAppID struct {
+	id string
+}
+
+func (o configOptionAppID) ConfigOptionType() string {
+	return configOptionTypeAppID
+}
+
+type configOptionAppIDFunc struct {
+	idFunc func() string
+}
+
+func (o configOptionAppIDFunc) ConfigOptionType() string {
+	return configOptionTypeAppIDFunc
 }
