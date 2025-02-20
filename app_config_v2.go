@@ -433,7 +433,30 @@ func (c *AppConfigV2) HelpString() string {
 }
 
 func (c *AppConfigV2) addFieldSets(fieldSets ...*FieldSet) []error {
-	return nil
+	c.fieldSetLock.Lock()
+	defer c.fieldSetLock.Unlock()
+
+	errs := []error{}
+	addedFieldSets := []string{}
+
+	for _, fieldSet := range fieldSets {
+		if fieldSetErrs := c.addFieldSet(fieldSet, false); len(fieldSetErrs) > 0 {
+			errs = append(errs, fieldSetErrs...)
+			continue
+		}
+
+		addedFieldSets = append(addedFieldSets, fieldSet.Key)
+	}
+
+	if len(errs) > 0 {
+		for _, fieldSetKey := range addedFieldSets {
+			delete(c.fieldSets, fieldSetKey)
+		}
+
+		c.orderedFieldSets = c.orderedFieldSets[:len(c.orderedFieldSets)-len(addedFieldSets)]
+	}
+
+	return errs
 }
 
 func (c *AppConfigV2) addFieldSet(fieldSet *FieldSet, lock bool) []error {
