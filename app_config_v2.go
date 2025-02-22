@@ -859,6 +859,10 @@ func (c *AppConfigV2) addFieldsToBuilder(builder *strings.Builder) {
 			builder.WriteString("Optional Configuration:\n")
 
 			for _, key := range optionalFields {
+				if key == "app_name" || key == "app_description" {
+					continue
+				}
+
 				fmt.Fprintf(builder, "\t%s", c.fieldHelpString(fields, key))
 			}
 		}
