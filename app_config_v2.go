@@ -258,12 +258,12 @@ func (c *AppConfigV2) Load(options ...LoadOption) []error {
 
 	// -- Parse load options --
 
-	handleHelpFlag := false
+	handleHelpFlag := true
 
 	for _, option := range options {
 		switch option.LoadOptionType() {
-		case loadOptionTypeHandleHelpFlag:
-			handleHelpFlag = true
+		case loadOptionTypeDisableHelpFlag:
+			handleHelpFlag = false
 		default:
 			c.warnings = append(c.warnings, fmt.Sprintf("unsupported load option '%s'", option.LoadOptionType()))
 		}

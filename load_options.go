@@ -1,30 +1,30 @@
 package bconf
 
 const (
-	loadOptionTypeHandleHelpFlag     = "handle_help_flag"
-	loadOptionTypeHandleGenerateFlag = "handle_generate_flag"
+	loadOptionTypeDisableHelpFlag     = "disable_help_flag_handler"
+	loadOptionTypeDisableGenerateFlag = "disable_generate_flag_handler"
 )
 
 type LoadOption interface {
 	LoadOptionType() string
 }
 
-func WithHelpFlagHandler() LoadOption {
-	return loadOptionHandleHelpFlag{}
+func DisableHelpFlagHandler() LoadOption {
+	return loadOptionDisableHelpFlag{}
 }
 
-func WithGenerateFlagHandler() LoadOption {
-	return loadOptionHandleGenerateFlag{}
+func DisableGenerateFlagHandler() LoadOption {
+	return loadOptionDisableGenerateFlag{}
 }
 
-type loadOptionHandleHelpFlag struct{}
+type loadOptionDisableHelpFlag struct{}
 
-func (o loadOptionHandleHelpFlag) LoadOptionType() string {
-	return loadOptionTypeHandleHelpFlag
+func (o loadOptionDisableHelpFlag) LoadOptionType() string {
+	return loadOptionTypeDisableHelpFlag
 }
 
-type loadOptionHandleGenerateFlag struct{}
+type loadOptionDisableGenerateFlag struct{}
 
-func (o loadOptionHandleGenerateFlag) LoadOptionType() string {
-	return loadOptionTypeHandleGenerateFlag
+func (o loadOptionDisableGenerateFlag) LoadOptionType() string {
+	return loadOptionTypeDisableGenerateFlag
 }
