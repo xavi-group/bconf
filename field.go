@@ -2,7 +2,9 @@ package bconf
 
 import (
 	"fmt"
+	"maps"
 	"reflect"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -50,19 +52,9 @@ type Field struct {
 func (f *Field) Clone() *Field {
 	clone := *f
 
-	clone.fieldFound = make([]string, len(f.fieldFound))
-	copy(clone.fieldFound, f.fieldFound)
-
-	clone.Enumeration = make([]any, len(f.Enumeration))
-	copy(clone.Enumeration, f.Enumeration)
-
-	if len(f.fieldValue) > 0 {
-		clone.fieldValue = make(map[string]any, len(f.fieldValue))
-
-		for key, value := range f.fieldValue {
-			clone.fieldValue[key] = value
-		}
-	}
+	clone.fieldFound = slices.Clone(f.fieldFound)
+	clone.Enumeration = slices.Clone(f.Enumeration)
+	clone.fieldValue = maps.Clone(f.fieldValue)
 
 	if len(f.LoadConditions) > 0 {
 		clone.LoadConditions = make(LoadConditions, len(f.LoadConditions))

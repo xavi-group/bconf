@@ -77,8 +77,6 @@ func NewAppConfigV2(appName, appDescription string, options ...ConfigOption) *Ap
 
 	config := &AppConfigV2{
 		fieldSets:        map[string]*FieldSet{},
-		name:             appName,
-		description:      appDescription,
 		fieldSetGroups:   fieldSetGroups{},
 		loaders:          loaders,
 		warnings:         warnings,
@@ -93,8 +91,6 @@ func NewAppConfigV2(appName, appDescription string, options ...ConfigOption) *Ap
 // AppConfigV2 ...
 type AppConfigV2 struct {
 	fieldSets        map[string]*FieldSet
-	name             string
-	description      string
 	fieldSetGroups   fieldSetGroups
 	loaders          []Loader
 	warnings         []string
@@ -104,15 +100,35 @@ type AppConfigV2 struct {
 }
 
 func (c *AppConfigV2) AppName() string {
-	return c.name
+	name, _ := c.GetString("app", "name")
+
+	return name
 }
 
 func (c *AppConfigV2) AppDescription() string {
-	return c.description
+	description, _ := c.GetString("app", "description")
+
+	return description
+}
+
+func (c *AppConfigV2) AppVersion() string {
+	version, _ := c.GetString("app", "version")
+
+	return version
+}
+
+func (c *AppConfigV2) AppID() string {
+	id, _ := c.GetString("app", "id")
+
+	return id
 }
 
 func (c *AppConfigV2) AddFieldSetGroup(groupName string, fieldSets FieldSets) {
 	c.fieldSetGroups = append(c.fieldSetGroups, &fieldSetGroup{name: groupName, fieldSets: fieldSets})
+}
+
+func (c *AppConfigV2) AddFieldSet(fieldSet *FieldSet) {
+	c.fieldSetGroups = append(c.fieldSetGroups, &fieldSetGroup{name: fieldSet.Key, fieldSets: FieldSets{fieldSet}})
 }
 
 func (c *AppConfigV2) GetField(fieldSetKey, fieldKey string) (*Field, error) {
@@ -430,14 +446,17 @@ func (c *AppConfigV2) Warnings() []string {
 func (c *AppConfigV2) HelpString() string {
 	builder := strings.Builder{}
 
-	if c.name != "" {
-		builder.WriteString(fmt.Sprintf("Usage of '%s':\n", c.name))
+	name := c.AppName()
+	description := c.AppDescription()
+
+	if name != "" {
+		builder.WriteString(fmt.Sprintf("Usage of '%s':\n", name))
 	} else {
 		builder.WriteString(fmt.Sprintf("Usage of '%s':\n", os.Args[0]))
 	}
 
-	if c.description != "" {
-		builder.WriteString(fmt.Sprintf("%s\n\n", c.description))
+	if description != "" {
+		builder.WriteString(fmt.Sprintf("%s\n\n", description))
 	}
 
 	c.addFieldsToBuilder(&builder)
