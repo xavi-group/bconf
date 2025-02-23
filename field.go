@@ -1,6 +1,7 @@
 package bconf
 
 import (
+	"errors"
 	"fmt"
 	"maps"
 	"reflect"
@@ -259,7 +260,7 @@ func (f *Field) getValue() (any, error) {
 		return f.overrideValue, nil
 	}
 
-	if f.fieldFound != nil && len(f.fieldFound) > 0 {
+	if len(f.fieldFound) > 0 {
 		value := f.fieldValue[f.fieldFound[len(f.fieldFound)-1]]
 
 		return value, nil
@@ -273,7 +274,7 @@ func (f *Field) getValue() (any, error) {
 		return f.generatedDefault, nil
 	}
 
-	return nil, fmt.Errorf(emptyFieldError)
+	return nil, errors.New(emptyFieldError)
 }
 
 // func (f *Field) getValueFrom(loader string) (any, error) {

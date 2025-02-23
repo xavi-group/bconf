@@ -11,7 +11,6 @@ import (
 	"time"
 )
 
-// NewAppConfigV2 ...
 func NewAppConfigV2(appName, appDescription string, options ...ConfigOption) *AppConfigV2 {
 	warnings := []string{}
 	loaders := []Loader{}
@@ -88,7 +87,6 @@ func NewAppConfigV2(appName, appDescription string, options ...ConfigOption) *Ap
 	return config
 }
 
-// AppConfigV2 ...
 type AppConfigV2 struct {
 	fieldSets        map[string]*FieldSet
 	fieldSetGroups   fieldSetGroups
@@ -257,7 +255,6 @@ func (c *AppConfigV2) GetDurations(fieldSetKey, fieldKey string) ([]time.Duratio
 
 func (c *AppConfigV2) Load(options ...LoadOption) []error {
 	// -- Add field set groups --
-
 	groupAddErrors := []error{}
 
 	for _, group := range c.fieldSetGroups {
