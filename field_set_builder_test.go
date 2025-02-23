@@ -7,12 +7,12 @@ import (
 )
 
 func TestFieldSetBuilderCreate(t *testing.T) {
-	fieldSet := bconf.NewFieldSetBuilder().Create()
+	fieldSet := bconf.NewFieldSetBuilder("").Create()
 	if fieldSet == nil {
 		t.Fatalf("unexpected nil field-set")
 	}
 
-	fieldSet = bconf.FSB().Create()
+	fieldSet = bconf.FSB("").Create()
 	if fieldSet == nil {
 		t.Fatalf("unexpected nil field-set")
 	}
@@ -26,19 +26,19 @@ func TestFieldSetBuilderCreate(t *testing.T) {
 }
 
 func TestFieldSetBuilderKey(t *testing.T) {
-	fieldSetKey := "test_key"
+	key := "test_key"
 
-	fieldSet := bconf.FSB().Key(fieldSetKey).Create()
-	if fieldSet.Key != fieldSetKey {
-		t.Fatalf("unexpected field-set key '%s', expected '%s'", fieldSet.Key, fieldSetKey)
+	fieldSet := bconf.FSB(key).Create()
+	if fieldSet.Key != key {
+		t.Fatalf("unexpected field-set key '%s', expected '%s'", fieldSet.Key, key)
 	}
 }
 
 func TestFieldSetBuilderFields(t *testing.T) {
-	fieldKey := "test_field_key"
-	field := bconf.FB().Key(fieldKey).Create()
+	fieldKey := "field_key"
+	field := bconf.FB(fieldKey, bconf.String).Create()
 
-	fieldSet := bconf.FSB().Fields(field).Create()
+	fieldSet := bconf.FSB("field_set_key").Fields(field).Create()
 	if len(fieldSet.Fields) != 1 {
 		t.Fatalf("unexpected fields length '%d', expected 1", len(fieldSet.Fields))
 	}
@@ -52,7 +52,7 @@ func TestFieldSetBuilderLoadConditions(t *testing.T) {
 	loadConditionFieldSetKey := "test_field_set_key"
 	loadConditionFieldKey := "test_field_key"
 
-	fieldSet := bconf.FSB().LoadConditions(
+	fieldSet := bconf.FSB("field_set_key").LoadConditions(
 		bconf.FCB().FieldSetKey(loadConditionFieldSetKey).FieldKey(loadConditionFieldKey).Create(),
 	).Create()
 

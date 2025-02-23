@@ -4,301 +4,135 @@ import (
 	"fmt"
 	"os"
 	"reflect"
+	"slices"
 	"sort"
 	"strings"
 	"sync"
 	"time"
 )
 
-func NewAppConfig(appName, appDescription string) *AppConfig {
-	return &AppConfig{
-		appName:          appName,
-		appDescription:   appDescription,
-		fieldSets:        map[string]*FieldSet{},
-		orderedFieldSets: FieldSets{},
-		loaders:          []Loader{},
+// NewAppConfig creates a new application configuration struct with configuration options that allow for the
+// specification of configuration sources (environment, flags, json files, etc).
+func NewAppConfig(appName, appDescription string, options ...ConfigOption) *AppConfig {
+	warnings := []string{}
+	loaders := []Loader{}
+
+	appVersion := "unknown"
+	appID := "undefined"
+
+	for _, option := range options {
+		switch option.ConfigOptionType() {
+		case configOptionTypeLoaderEnvironment:
+			if castOption, ok := option.(configOptionEnvironmentLoader); ok {
+				loaders = append(loaders, castOption.Loader())
+			} else {
+				warnings = append(warnings, "problem casting environment loader option")
+			}
+		case configOptionTypeLoaderFlag:
+			if castOption, ok := option.(configOptionFlagLoader); ok {
+				loaders = append(loaders, castOption.Loader())
+			} else {
+				warnings = append(warnings, "problem casting flag loader option")
+			}
+		case configOptionTypeLoaderJSONFile:
+			if castOption, ok := option.(configOptionJSONFileLoader); ok {
+				loaders = append(loaders, castOption.Loader())
+			} else {
+				warnings = append(warnings, "problem casting JSON-file loader option")
+			}
+		case configOptionTypeAppID:
+			if castOption, ok := option.(configOptionAppID); ok {
+				appID = castOption.id
+			} else {
+				warnings = append(warnings, "problem casting app ID option")
+			}
+		case configOptionTypeAppIDFunc:
+			if castOption, ok := option.(configOptionAppIDFunc); ok {
+				appID = castOption.idFunc()
+			} else {
+				warnings = append(warnings, "problem casting app ID func option")
+			}
+		case configOptionTypeAppVersion:
+			if castOption, ok := option.(configOptionAppVersion); ok {
+				appVersion = castOption.version
+			} else {
+				warnings = append(warnings, "problem casting app version option")
+			}
+		case configOptionTypeAppVersionFunc:
+			if castOption, ok := option.(configOptionAppVersionFunc); ok {
+				appVersion = castOption.versionFunc()
+			} else {
+				warnings = append(warnings, "problem casting app version func option")
+			}
+		default:
+			warnings = append(warnings, fmt.Sprintf("unsupported config option '%s'", option.ConfigOptionType()))
+		}
 	}
+
+	appFieldSet := FSB("app").Fields(
+		FB("name", String).Default(appName).C(),
+		FB("description", String).Default(appDescription).C(),
+		FB("version", String).Default(appVersion).C(),
+		FB("id", String).Default(appID).C(),
+	).C()
+
+	config := &AppConfig{
+		fieldSets:        map[string]*FieldSet{},
+		fieldSetGroups:   fieldSetGroups{},
+		loaders:          loaders,
+		warnings:         warnings,
+		orderedFieldSets: FieldSets{},
+	}
+
+	config.AddFieldSet(appFieldSet)
+
+	return config
 }
 
+// --------------------------------------------------------------------------------------------------------------------
+
+// AppConfig manages application configuration field-sets and provides access to configuration values. It should be
+// initialized with the NewAppConfig function.
 type AppConfig struct {
 	fieldSets        map[string]*FieldSet
-	appName          string
-	appDescription   string
+	fieldSetGroups   fieldSetGroups
 	loaders          []Loader
+	warnings         []string
 	orderedFieldSets FieldSets
 	fieldSetLock     sync.Mutex
-	register         sync.Once
-	registered       bool
+	loaded           bool
 }
 
 func (c *AppConfig) AppName() string {
-	return c.appName
+	name, _ := c.GetString("app", "name")
+
+	return name
 }
 
 func (c *AppConfig) AppDescription() string {
-	return c.appDescription
+	description, _ := c.GetString("app", "description")
+
+	return description
 }
 
-func (c *AppConfig) SetLoaders(loaders ...Loader) []error {
-	errs := []error{}
+func (c *AppConfig) AppVersion() string {
+	version, _ := c.GetString("app", "version")
 
-	clonedLoaders := make([]Loader, len(loaders))
-	for index, loader := range loaders {
-		clonedLoaders[index] = loader.CloneLoader()
-	}
-
-	loaderNames := make(map[string]struct{}, len(clonedLoaders))
-	for _, loader := range clonedLoaders {
-		if _, found := loaderNames[loader.Name()]; found {
-			errs = append(errs, fmt.Errorf("duplicate loader name found: '%s'", loader.Name()))
-		}
-
-		loaderNames[loader.Name()] = struct{}{}
-	}
-
-	if len(errs) > 0 {
-		return errs
-	}
-
-	c.loaders = clonedLoaders
-
-	return nil
+	return version
 }
 
-func (c *AppConfig) AddFieldSet(fieldSet *FieldSet) []error {
-	return c.addFieldSet(fieldSet, true)
+func (c *AppConfig) AppID() string {
+	id, _ := c.GetString("app", "id")
+
+	return id
 }
 
-func (c *AppConfig) AddFieldSets(fieldSets ...*FieldSet) []error {
-	c.fieldSetLock.Lock()
-	defer c.fieldSetLock.Unlock()
-
-	errs := []error{}
-	addedFieldSets := []string{}
-
-	for _, fieldSet := range fieldSets {
-		if fieldSetErrs := c.addFieldSet(fieldSet, false); len(fieldSetErrs) > 0 {
-			errs = append(errs, fieldSetErrs...)
-			continue
-		}
-
-		addedFieldSets = append(addedFieldSets, fieldSet.Key)
-	}
-
-	if len(errs) > 0 {
-		for _, fieldSetKey := range addedFieldSets {
-			delete(c.fieldSets, fieldSetKey)
-		}
-
-		c.orderedFieldSets = c.orderedFieldSets[:len(c.orderedFieldSets)-len(addedFieldSets)]
-	}
-
-	return errs
+func (c *AppConfig) AddFieldSetGroup(groupName string, fieldSets FieldSets) {
+	c.fieldSetGroups = append(c.fieldSetGroups, &fieldSetGroup{name: groupName, fieldSets: fieldSets})
 }
 
-func (c *AppConfig) AddField(fieldSetKey string, field *Field) []error {
-	c.fieldSetLock.Lock()
-	defer c.fieldSetLock.Unlock()
-
-	fieldSet, fieldSetFound := c.fieldSets[fieldSetKey]
-
-	if !fieldSetFound {
-		return []error{fmt.Errorf("no field-set found with key '%s'", fieldSetKey)}
-	}
-
-	if _, keyFound := c.fieldSets[fieldSetKey].fieldMap[field.Key]; keyFound {
-		return []error{fmt.Errorf("duplicate field key found: '%s'", field.Key)}
-	}
-
-	field = field.Clone()
-
-	if err := field.generateDefault(); err != nil {
-		return []error{fmt.Errorf("field default value generation error: %w", err)}
-	}
-
-	if validationErrors := field.validate(); len(validationErrors) > 0 {
-		return validationErrors
-	}
-
-	if err := c.checkForFieldDependencies(field, fieldSet); err != nil {
-		return []error{fmt.Errorf("field dependency error: %w", err)}
-	}
-
-	c.fieldSets[fieldSetKey].fieldMap[field.Key] = field
-
-	return nil
-}
-
-func (c *AppConfig) LoadFieldSet(fieldSetKey string) []error {
-	errs := []error{}
-
-	if !c.registered {
-		errs = append(errs, fmt.Errorf("LoadFieldSet cannot be called before the app-config has been registered"))
-		return errs
-	}
-
-	return c.loadFieldSet(fieldSetKey)
-}
-
-func (c *AppConfig) LoadField(fieldSetKey, fieldKey string) []error {
-	errs := []error{}
-
-	if !c.registered {
-		errs = append(errs, fmt.Errorf("LoadField cannot be called before the app-config has been registered"))
-		return errs
-	}
-
-	if _, fieldSetFound := c.fieldSets[fieldSetKey]; !fieldSetFound {
-		errs = append(errs, fmt.Errorf("field-set with key '%s' not found", fieldSetKey))
-		return errs
-	}
-
-	field, fieldKeyFound := c.fieldSets[fieldSetKey].fieldMap[fieldKey]
-	if !fieldKeyFound {
-		errs = append(errs, fmt.Errorf("field with key '%s' not found", fieldKey))
-		return errs
-	}
-
-	if load, err := c.shouldLoadField(field, fieldSetKey); err != nil {
-		errs = append(errs, err)
-		return errs
-	} else if !load {
-		errs = append(errs, fmt.Errorf("field load-conditions not met"))
-		return errs
-	}
-
-	for _, loader := range c.loaders {
-		value, found := loader.Get(fieldSetKey, fieldKey)
-		if !found {
-			continue
-		}
-
-		if err := field.set(loader.Name(), value); err != nil {
-			errs = append(errs, fmt.Errorf("field '%s' load error: %w", fieldKey, err))
-		}
-	}
-
-	return nil
-}
-
-func (c *AppConfig) SetField(fieldSetKey, fieldKey string, fieldValue any) error {
-	fieldSet, fieldSetFound := c.fieldSets[fieldSetKey]
-	if !fieldSetFound {
-		return fmt.Errorf("field-set with key '%s' not found", fieldSetKey)
-	}
-
-	field, fieldKeyFound := fieldSet.fieldMap[fieldKey]
-	if !fieldKeyFound {
-		return fmt.Errorf("field with key '%s' not found", fieldKey)
-	}
-
-	if err := field.setOverride(fieldValue); err != nil {
-		return fmt.Errorf("problem setting field value: %w", err)
-	}
-
-	return nil
-}
-
-// Register loads all defined field sets and optionally checks for and handles the help flag -h and --help.
-func (c *AppConfig) Register(handleHelpFlag bool) []error {
-	if handleHelpFlag && len(os.Args) > 1 && (os.Args[1] == "--help" || os.Args[1] == "-h") {
-		c.printHelpString()
-		os.Exit(0)
-	}
-
-	errs := []error{}
-
-	for _, fieldSet := range c.orderedFieldSets {
-		if fieldSetErrs := c.loadFieldSet(fieldSet.Key); len(fieldSetErrs) > 0 {
-			errs = append(errs, fieldSetErrs...)
-			return errs
-		}
-	}
-
-	c.registered = true
-
-	return nil
-}
-
-func (c *AppConfig) HelpString() string {
-	builder := strings.Builder{}
-
-	if c.appName != "" {
-		builder.WriteString(fmt.Sprintf("Usage of '%s':\n", c.appName))
-	} else {
-		builder.WriteString(fmt.Sprintf("Usage of '%s':\n", os.Args[0]))
-	}
-
-	if c.appDescription != "" {
-		builder.WriteString(fmt.Sprintf("%s\n\n", c.appDescription))
-	}
-
-	c.addFieldsToBuilder(&builder)
-
-	return builder.String()
-}
-
-func (c *AppConfig) ConfigMap() map[string]map[string]any {
-	configMap := map[string]map[string]any{}
-
-	for _, fieldSet := range c.fieldSets {
-		fieldSetMap := map[string]any{}
-
-		for _, field := range fieldSet.fieldMap {
-			val, err := field.getValue()
-
-			if err != nil {
-				continue
-			}
-
-			if field.Sensitive {
-				fieldSetMap[field.Key] = "<sensitive-value>"
-				continue
-			}
-
-			if field.Type == Duration {
-				val = val.(time.Duration).Milliseconds()
-				fieldSetMap[fmt.Sprintf("%s_ms", field.Key)] = val
-
-				continue
-			}
-
-			fieldSetMap[field.Key] = val
-		}
-
-		configMap[fieldSet.Key] = fieldSetMap
-	}
-
-	return configMap
-}
-
-func (c *AppConfig) GetFieldSetKeys() []string {
-	keys := make([]string, len(c.fieldSets))
-	idx := 0
-
-	for key := range c.fieldSets {
-		keys[idx] = key
-		idx++
-	}
-
-	return keys
-}
-
-func (c *AppConfig) GetFieldSetFieldKeys(fieldSetKey string) ([]string, error) {
-	fieldSet, found := c.fieldSets[fieldSetKey]
-	if !found {
-		return nil, fmt.Errorf("field-set not found with key: '%s'", fieldSetKey)
-	}
-
-	keys := make([]string, len(fieldSet.fieldMap))
-	idx := 0
-
-	for key := range c.fieldSets {
-		keys[idx] = key
-		idx++
-	}
-
-	return keys, nil
+func (c *AppConfig) AddFieldSet(fieldSet *FieldSet) {
+	c.fieldSetGroups = append(c.fieldSetGroups, &fieldSetGroup{name: fieldSet.Key, fieldSets: FieldSets{fieldSet}})
 }
 
 func (c *AppConfig) GetField(fieldSetKey, fieldKey string) (*Field, error) {
@@ -425,6 +259,58 @@ func (c *AppConfig) GetDurations(fieldSetKey, fieldKey string) ([]time.Duration,
 	return val, nil
 }
 
+func (c *AppConfig) Load(options ...LoadOption) []error {
+	// -- Add field set groups --
+	groupAddErrors := []error{}
+
+	for _, group := range c.fieldSetGroups {
+		if errs := c.addFieldSets(group.fieldSets...); len(errs) > 0 {
+			err := fmt.Errorf("problem(s) adding '%s' field-set group: %v\n", group.name, errs)
+
+			groupAddErrors = append(groupAddErrors, err)
+		}
+	}
+
+	if len(groupAddErrors) > 0 {
+		return groupAddErrors
+	}
+
+	// -- Parse load options --
+
+	handleHelpFlag := true
+
+	for _, option := range options {
+		switch option.LoadOptionType() {
+		case loadOptionTypeDisableHelpFlag:
+			handleHelpFlag = false
+		default:
+			c.warnings = append(c.warnings, fmt.Sprintf("unsupported load option '%s'", option.LoadOptionType()))
+		}
+	}
+
+	// -- Output help message if conditions are satisfied --
+
+	if handleHelpFlag && len(os.Args) > 1 && (os.Args[1] == "--help" || os.Args[1] == "-h") {
+		c.printHelpString()
+		os.Exit(0)
+	}
+
+	// -- Load field-sets --
+
+	loadErrors := []error{}
+
+	for _, fieldSet := range c.orderedFieldSets {
+		if fieldSetErrs := c.loadFieldSet(fieldSet.Key); len(fieldSetErrs) > 0 {
+			loadErrors = append(loadErrors, fieldSetErrs...)
+			return loadErrors
+		}
+	}
+
+	c.loaded = true
+
+	return nil
+}
+
 func (c *AppConfig) FillStruct(configStruct any) (err error) {
 	defer func() {
 		if r := recover(); r != nil {
@@ -443,17 +329,23 @@ func (c *AppConfig) FillStruct(configStruct any) (err error) {
 		return fmt.Errorf("FillStruct expects a pointer to a struct, found pointer to '%s'", configStructValue.Kind())
 	}
 
+	baseFieldSetFound := false
+	baseFieldSet := ""
+
 	configStructField := configStructValue.FieldByName("ConfigStruct")
-	if !configStructField.IsValid() || configStructField.Type().PkgPath() != "github.com/rheisen/bconf" {
-		return fmt.Errorf("FillStruct expects a struct with a bconf.ConfigStruct field, none found")
-	}
 
-	configStructFieldType, _ := configStructType.FieldByName("ConfigStruct")
+	if configStructField.IsValid() && configStructField.Type().PkgPath() == "github.com/rheisen/bconf" {
+		var configStructFieldType reflect.StructField
 
-	baseFieldSet := configStructFieldType.Tag.Get("bconf")
+		configStructFieldType, baseFieldSetFound = configStructType.FieldByName("ConfigStruct")
 
-	if overrideValue := configStructField.FieldByName("FieldSet"); overrideValue.String() != "" {
-		baseFieldSet = overrideValue.String()
+		if baseFieldSetFound {
+			baseFieldSet = configStructFieldType.Tag.Get("bconf")
+
+			if overrideValue := configStructField.FieldByName("FieldSet"); overrideValue.String() != "" {
+				baseFieldSet = overrideValue.String()
+			}
+		}
 	}
 
 	for i := 0; i < configStructValue.NumField(); i++ {
@@ -507,7 +399,102 @@ func (c *AppConfig) FillStruct(configStruct any) (err error) {
 	return nil
 }
 
-// -- Private methods --
+func (c *AppConfig) ConfigMap() map[string]map[string]any {
+	configMap := map[string]map[string]any{}
+
+	for _, fieldSet := range c.fieldSets {
+		fieldSetMap := map[string]any{}
+
+		for _, field := range fieldSet.fieldMap {
+			location := fmt.Sprintf("%s.%s", fieldSet.Key, field.Key)
+
+			switch location {
+			case "app.name":
+			case "app.description":
+				continue
+			}
+
+			val, err := field.getValue()
+
+			if err != nil {
+				continue
+			}
+
+			if field.Sensitive {
+				fieldSetMap[field.Key] = "<sensitive-value>"
+				continue
+			}
+
+			if field.Type == Duration {
+				// TODO: use higher time grain if duration > 1 hour
+				val = val.(time.Duration).Milliseconds()
+				fieldSetMap[fmt.Sprintf("%s_ms", field.Key)] = val
+
+				continue
+			}
+
+			fieldSetMap[field.Key] = val
+		}
+
+		configMap[fieldSet.Key] = fieldSetMap
+	}
+
+	return configMap
+}
+
+func (c *AppConfig) Warnings() []string {
+	return slices.Clone(c.warnings)
+}
+
+func (c *AppConfig) HelpString() string {
+	builder := strings.Builder{}
+
+	name := c.AppName()
+	description := c.AppDescription()
+
+	if name != "" {
+		builder.WriteString(fmt.Sprintf("Usage of '%s':\n", name))
+	} else {
+		builder.WriteString(fmt.Sprintf("Usage of '%s':\n", os.Args[0]))
+	}
+
+	if description != "" {
+		builder.WriteString(fmt.Sprintf("%s\n\n", description))
+	}
+
+	c.addFieldsToBuilder(&builder)
+
+	return builder.String()
+}
+
+// --------------------------------------------------------------------------------------------------------------------
+
+func (c *AppConfig) addFieldSets(fieldSets ...*FieldSet) []error {
+	c.fieldSetLock.Lock()
+	defer c.fieldSetLock.Unlock()
+
+	errs := []error{}
+	addedFieldSets := []string{}
+
+	for _, fieldSet := range fieldSets {
+		if fieldSetErrs := c.addFieldSet(fieldSet, false); len(fieldSetErrs) > 0 {
+			errs = append(errs, fieldSetErrs...)
+			continue
+		}
+
+		addedFieldSets = append(addedFieldSets, fieldSet.Key)
+	}
+
+	if len(errs) > 0 {
+		for _, fieldSetKey := range addedFieldSets {
+			delete(c.fieldSets, fieldSetKey)
+		}
+
+		c.orderedFieldSets = c.orderedFieldSets[:len(c.orderedFieldSets)-len(addedFieldSets)]
+	}
+
+	return errs
+}
 
 func (c *AppConfig) addFieldSet(fieldSet *FieldSet, lock bool) []error {
 	if lock {
@@ -820,6 +807,10 @@ func (c *AppConfig) getFieldValue(fieldSetKey, fieldKey, expectedType string) (a
 	return fieldValue, nil
 }
 
+func (c *AppConfig) printHelpString() {
+	fmt.Printf("%s", c.HelpString())
+}
+
 type fieldEntry struct {
 	fieldSetKey    string
 	field          *Field
@@ -898,6 +889,10 @@ func (c *AppConfig) addFieldsToBuilder(builder *strings.Builder) {
 			builder.WriteString("Optional Configuration:\n")
 
 			for _, key := range optionalFields {
+				if key == "app_name" || key == "app_description" {
+					continue
+				}
+
 				fmt.Fprintf(builder, "\t%s", c.fieldHelpString(fields, key))
 			}
 		}
@@ -963,8 +958,4 @@ func (c *AppConfig) fieldHelpString(fields map[string]*fieldEntry, key string) s
 	}
 
 	return builder.String()
-}
-
-func (c *AppConfig) printHelpString() {
-	fmt.Printf("%s", c.HelpString())
 }

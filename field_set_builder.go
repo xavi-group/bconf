@@ -1,22 +1,15 @@
 package bconf
 
-func NewFieldSetBuilder() *FieldSetBuilder {
-	return &FieldSetBuilder{fieldSet: &FieldSet{}}
+func NewFieldSetBuilder(fieldSetKey string) *FieldSetBuilder {
+	return &FieldSetBuilder{fieldSet: &FieldSet{Key: fieldSetKey}}
 }
 
-func FSB() *FieldSetBuilder {
-	return NewFieldSetBuilder()
+func FSB(fieldSetKey string) *FieldSetBuilder {
+	return NewFieldSetBuilder(fieldSetKey)
 }
 
 type FieldSetBuilder struct {
 	fieldSet *FieldSet
-}
-
-func (b *FieldSetBuilder) Key(value string) *FieldSetBuilder {
-	b.init()
-	b.fieldSet.Key = value
-
-	return b
 }
 
 func (b *FieldSetBuilder) Fields(value ...*Field) *FieldSetBuilder {
@@ -36,6 +29,10 @@ func (b *FieldSetBuilder) LoadConditions(value ...LoadCondition) *FieldSetBuilde
 func (b *FieldSetBuilder) Create() *FieldSet {
 	b.init()
 	return b.fieldSet.Clone()
+}
+
+func (b *FieldSetBuilder) C() *FieldSet {
+	return b.Create()
 }
 
 func (b *FieldSetBuilder) init() {

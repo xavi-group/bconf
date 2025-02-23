@@ -1,22 +1,15 @@
 package bconf
 
-func FB() *FieldBuilder {
-	return NewFieldBuilder()
+func FB(fieldKey, fieldType string) *FieldBuilder {
+	return NewFieldBuilder(fieldKey, fieldType)
 }
 
-func NewFieldBuilder() *FieldBuilder {
-	return &FieldBuilder{field: &Field{}}
+func NewFieldBuilder(fieldKey, fieldType string) *FieldBuilder {
+	return &FieldBuilder{field: &Field{Key: fieldKey, Type: fieldType}}
 }
 
 type FieldBuilder struct {
 	field *Field
-}
-
-func (b *FieldBuilder) Key(value string) *FieldBuilder {
-	b.init()
-	b.field.Key = value
-
-	return b
 }
 
 func (b *FieldBuilder) Default(value any) *FieldBuilder {
@@ -43,13 +36,6 @@ func (b *FieldBuilder) DefaultGenerator(value func() (any, error)) *FieldBuilder
 func (b *FieldBuilder) LoadConditions(value ...LoadCondition) *FieldBuilder {
 	b.init()
 	b.field.LoadConditions = value
-
-	return b
-}
-
-func (b *FieldBuilder) Type(value string) *FieldBuilder {
-	b.init()
-	b.field.Type = value
 
 	return b
 }
@@ -85,6 +71,10 @@ func (b *FieldBuilder) Sensitive() *FieldBuilder {
 func (b *FieldBuilder) Create() *Field {
 	b.init()
 	return b.field.Clone()
+}
+
+func (b *FieldBuilder) C() *Field {
+	return b.Create()
 }
 
 func (b *FieldBuilder) init() {
