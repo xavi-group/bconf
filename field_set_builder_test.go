@@ -7,30 +7,33 @@ import (
 )
 
 func TestFieldSetBuilderCreate(t *testing.T) {
-	fieldSet := bconf.NewFieldSetBuilder("").Create()
+	fieldSetKey := "field_set_key"
+
+	fieldSet := bconf.NewFieldSetBuilder(fieldSetKey).Create()
 	if fieldSet == nil {
 		t.Fatalf("unexpected nil field-set")
 	}
 
-	fieldSet = bconf.FSB("").Create()
+	if fieldSet.Key != fieldSetKey {
+		t.Errorf("unexpected field set key (expected '%s'), found: '%s'\n", fieldSetKey, fieldSet.Key)
+	}
+
+	fieldSet = bconf.FSB(fieldSetKey).Create()
 	if fieldSet == nil {
 		t.Fatalf("unexpected nil field-set")
 	}
 
-	builder := &bconf.FieldSetBuilder{}
+	if fieldSet.Key != fieldSetKey {
+		t.Errorf("unexpected field set key (expected '%s'), found: '%s'\n", fieldSetKey, fieldSet.Key)
+	}
 
-	fieldSet = builder.Create()
+	fieldSet = bconf.FSB(fieldSetKey).C()
 	if fieldSet == nil {
 		t.Fatalf("unexpected nil field-set")
 	}
-}
 
-func TestFieldSetBuilderKey(t *testing.T) {
-	key := "test_key"
-
-	fieldSet := bconf.FSB(key).Create()
-	if fieldSet.Key != key {
-		t.Fatalf("unexpected field-set key '%s', expected '%s'", fieldSet.Key, key)
+	if fieldSet.Key != fieldSetKey {
+		t.Errorf("unexpected field set key (expected '%s'), found: '%s'\n", fieldSetKey, fieldSet.Key)
 	}
 }
 
@@ -49,23 +52,13 @@ func TestFieldSetBuilderFields(t *testing.T) {
 }
 
 func TestFieldSetBuilderLoadConditions(t *testing.T) {
-	loadConditionFieldSetKey := "test_field_set_key"
-	loadConditionFieldKey := "test_field_key"
-
 	fieldSet := bconf.FSB("field_set_key").LoadConditions(
-		bconf.FCB().FieldSetKey(loadConditionFieldSetKey).FieldKey(loadConditionFieldKey).Create(),
-	).Create()
+		bconf.LCB(func(c bconf.LoadConditionValues) (bool, error) {
+			return true, nil
+		}).C(),
+	).C()
 
 	if len(fieldSet.LoadConditions) != 1 {
 		t.Fatalf("unexpected load-conditions length '%d', expected 1", len(fieldSet.LoadConditions))
-	}
-
-	fieldSetKey, fieldKey := fieldSet.LoadConditions[0].FieldDependency()
-	if fieldSetKey != loadConditionFieldSetKey {
-		t.Fatalf("unexpected field-set key '%s', expected '%s'", fieldSetKey, loadConditionFieldSetKey)
-	}
-
-	if fieldKey != loadConditionFieldKey {
-		t.Fatalf("unexpected field key '%s', expected '%s'", fieldKey, loadConditionFieldKey)
 	}
 }

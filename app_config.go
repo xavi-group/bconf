@@ -77,8 +77,8 @@ func NewAppConfig(appName, appDescription string, options ...ConfigOption) *AppC
 	).C()
 
 	config := &AppConfig{
-		fieldSets:        map[string]*FieldSet{},
 		fieldSetGroups:   fieldSetGroups{},
+		fieldSets:        map[string]*FieldSet{},
 		loaders:          loaders,
 		warnings:         warnings,
 		orderedFieldSets: FieldSets{},
@@ -426,7 +426,7 @@ func (c *AppConfig) ConfigMap() map[string]map[string]any {
 			}
 
 			if field.Type == Duration {
-				// TODO: use higher time grain if duration > 1 hour
+				// TODO: use higher time grain if duration > 1 hour ?
 				val = val.(time.Duration).Milliseconds()
 				fieldSetMap[fmt.Sprintf("%s_ms", field.Key)] = val
 
@@ -550,30 +550,35 @@ func (c *AppConfig) checkForFieldSetDependencies(fieldSet *FieldSet) []error {
 	errs := []error{}
 
 	for _, loadCondition := range fieldSet.LoadConditions {
-		fieldSetKey, fieldKey := loadCondition.FieldDependency()
-		if fieldSetKey == "" && fieldKey == "" {
+		dependencies := loadCondition.FieldDependencies()
+		if len(dependencies) < 1 {
 			continue
 		}
 
-		fieldSetDependency, found := c.fieldSets[fieldSetKey]
-		if !found {
-			errs = append(
-				errs,
-				fmt.Errorf("field-set '%s' field-set dependency not found: %s", fieldSet.Key, fieldSetKey),
-			)
+		for _, dependency := range dependencies {
+			fieldSetDependency, found := c.fieldSets[dependency.FieldSetKey]
+			if !found {
+				errs = append(
+					errs,
+					fmt.Errorf(
+						"field-set '%s' (for field-set '%s' load condition) not found in config",
+						dependency.FieldSetKey, fieldSet.Key,
+					),
+				)
 
-			continue
-		}
+				continue
+			}
 
-		_, found = fieldSetDependency.fieldMap[fieldKey]
-		if !found {
-			errs = append(
-				errs,
-				fmt.Errorf(
-					"field-set '%s' field-set dependency field not found: %s_%s",
-					fieldSet.Key, fieldSetKey, fieldKey,
-				),
-			)
+			_, found = fieldSetDependency.fieldMap[dependency.FieldKey]
+			if !found {
+				errs = append(
+					errs,
+					fmt.Errorf(
+						"field-set '%s' field '%s' (for field-set '%s' load condition) not found in config",
+						dependency.FieldSetKey, dependency.FieldKey, fieldSet.Key,
+					),
+				)
+			}
 		}
 	}
 
@@ -587,36 +592,34 @@ func (c *AppConfig) checkForFieldSetDependencies(fieldSet *FieldSet) []error {
 }
 
 func (c *AppConfig) checkForFieldDependencies(field *Field, parent *FieldSet) error {
-	if len(field.LoadConditions) > 0 {
-		for _, loadCondition := range field.LoadConditions {
-			var fieldSetDependency *FieldSet
+	for _, loadCondition := range field.LoadConditions {
+		dependencies := loadCondition.FieldDependencies()
 
+		if len(dependencies) < 1 {
+			continue
+		}
+
+		for _, dependency := range dependencies {
+			var fieldSetDependency *FieldSet
 			var found bool
 
-			fieldSetKey, fieldKey := loadCondition.FieldDependency()
-
-			if fieldSetKey == "" && fieldKey == "" {
-				continue
-			}
-
-			if fieldSetKey == "" || fieldSetKey == parent.Key {
-				fieldSetKey = parent.Key
+			if dependency.FieldSetKey == "" || dependency.FieldSetKey == parent.Key {
 				fieldSetDependency = parent
 			} else {
-				fieldSetDependency, found = c.fieldSets[fieldSetKey]
+				fieldSetDependency, found = c.fieldSets[dependency.FieldSetKey]
 
 				if !found {
 					return fmt.Errorf(
-						"field-set '%s' field '%s' field-set dependency not found: %s",
-						fieldSetKey, field.Key, fieldSetKey,
+						"field-set '%s' (for field-set '%s' field '%s' load condition) not found in config",
+						dependency.FieldSetKey, parent.Key, field.Key,
 					)
 				}
 			}
 
-			if _, found = fieldSetDependency.fieldMap[fieldKey]; !found {
+			if _, found = fieldSetDependency.fieldMap[dependency.FieldKey]; !found {
 				return fmt.Errorf(
-					"field-set '%s' field '%s' field-set field not found: %s_%s",
-					parent.Key, field.Key, fieldSetKey, fieldKey,
+					"field-set '%s' field '%s' (for field-set '%s' field '%s' load condition) not found in config",
+					fieldSetDependency.Key, dependency.FieldKey, parent.Key, field.Key,
 				)
 			}
 		}
@@ -709,80 +712,91 @@ func (c *AppConfig) loadFieldSet(fieldSetKey string) []error {
 	return errs
 }
 
-func (c *AppConfig) shouldLoadFieldSet(fieldSet *FieldSet) (bool, error) {
-	loadFieldSet := true
+func (c *AppConfig) shouldLoadFieldSet(fieldSet *FieldSet) (loadFieldSet bool, err error) {
+	loadFieldSet = true
 
-	if len(fieldSet.LoadConditions) > 0 {
-		for _, loadCondition := range fieldSet.LoadConditions {
-			if !loadFieldSet {
-				break
-			}
+	for _, loadCondition := range fieldSet.LoadConditions {
+		if !loadFieldSet {
+			break
+		}
 
-			conditionFieldSetKey, conditionFieldSetFieldKey := loadCondition.FieldDependency()
-			if conditionFieldSetKey != "" && conditionFieldSetFieldKey != "" {
-				fieldValue, err := c.getFieldValue(conditionFieldSetKey, conditionFieldSetFieldKey, "any")
-				if err != nil {
-					return false, fmt.Errorf("problem getting field value for load condition: %w", err)
-				}
-
-				loadFieldSet, err = loadCondition.Load(fieldValue)
-				if err != nil {
-					return false, fmt.Errorf("problem getting load condition outcome: %w", err)
-				}
-
-				continue
-			}
-
-			var err error
-
-			loadFieldSet, err = loadCondition.Load(nil)
+		dependencies := loadCondition.FieldDependencies()
+		if len(dependencies) < 1 {
+			loadFieldSet, err = loadCondition.Load(loadCondition)
 			if err != nil {
-				return false, fmt.Errorf("problem getting load condition outcome: %w", err)
+				return false, fmt.Errorf("problem getting field-set '%s' load condition outcome: %w", fieldSet.Key, err)
 			}
 
 			continue
+		}
+
+		for _, dependency := range dependencies {
+			fieldValue, err := c.getFieldValue(dependency.FieldSetKey, dependency.FieldKey, "any")
+			if err != nil {
+				return false, fmt.Errorf(
+					"problem getting field value for field-set '%s' load condition: %w", fieldSet.Key, err,
+				)
+			}
+
+			loadCondition.SetFieldDependencies(FieldValue{
+				FieldSetKey: dependency.FieldSetKey, FieldKey: dependency.FieldKey, FieldValue: fieldValue,
+			})
+		}
+
+		loadFieldSet, err = loadCondition.Load(loadCondition)
+		if err != nil {
+			return false, fmt.Errorf("problem getting field-set '%s' load condition outcome: %w", fieldSet.Key, err)
 		}
 	}
 
 	return loadFieldSet, nil
 }
 
-func (c *AppConfig) shouldLoadField(field *Field, fieldSetKey string) (bool, error) {
-	loadField := true
+func (c *AppConfig) shouldLoadField(field *Field, fieldSetKey string) (loadField bool, err error) {
+	loadField = true
 
-	if len(field.LoadConditions) > 0 {
-		for _, loadCondition := range field.LoadConditions {
-			if !loadField {
-				break
-			}
+	for _, loadCondition := range field.LoadConditions {
+		if !loadField {
+			break
+		}
 
-			conditionFieldSetKey, conditionFieldSetFieldKey := loadCondition.FieldDependency()
-			if conditionFieldSetKey == "" {
-				conditionFieldSetKey = fieldSetKey
-			}
-
-			if conditionFieldSetKey != "" && conditionFieldSetFieldKey != "" {
-				fieldValue, err := c.getFieldValue(conditionFieldSetKey, conditionFieldSetFieldKey, "any")
-				if err != nil {
-					return false, fmt.Errorf("problem getting field value for load condition: %w", err)
-				}
-
-				loadField, err = loadCondition.Load(fieldValue)
-				if err != nil {
-					return false, fmt.Errorf("problem getting load condition outcome: %w", err)
-				}
-
-				continue
-			}
-
-			var err error
-
-			loadField, err = loadCondition.Load(nil)
+		dependencies := loadCondition.FieldDependencies()
+		if len(dependencies) < 1 {
+			loadField, err = loadCondition.Load(loadCondition)
 			if err != nil {
-				return false, fmt.Errorf("problem getting load condition outcome: %w", err)
+				return false, fmt.Errorf(
+					"problem getting field-set '%s' field '%s' load condition outcome: %w",
+					fieldSetKey, field.Key, err,
+				)
 			}
 
 			continue
+		}
+
+		for _, dependency := range dependencies {
+			if dependency.FieldSetKey == "" {
+				dependency.FieldSetKey = fieldSetKey
+			}
+
+			fieldValue, err := c.getFieldValue(dependency.FieldSetKey, dependency.FieldKey, "any")
+			if err != nil {
+				return false, fmt.Errorf(
+					"problem getting field value for field-set '%s' field '%s' load condition: %w",
+					fieldSetKey, field.Key, err,
+				)
+			}
+
+			loadCondition.SetFieldDependencies(FieldValue{
+				FieldSetKey: dependency.FieldSetKey, FieldKey: dependency.FieldKey, FieldValue: fieldValue,
+			})
+		}
+
+		loadField, err = loadCondition.Load(loadCondition)
+		if err != nil {
+			return false, fmt.Errorf(
+				"problem getting field-set '%s' field '%s' load condition outcome: %w",
+				fieldSetKey, field.Key, err,
+			)
 		}
 	}
 
@@ -945,12 +959,21 @@ func (c *AppConfig) fieldHelpString(fields map[string]*fieldEntry, key string) s
 	}
 
 	for _, condition := range loadConditions {
-		fieldSetDependency, fieldDependency := condition.FieldDependency()
-		if fieldSetDependency != "" && fieldDependency != "" {
+		dependencies := condition.FieldDependencies()
+
+		if len(dependencies) > 0 {
 			builder.WriteString(spaceBuffer)
-			builder.WriteString(
-				fmt.Sprintf("Loading depends on field: '%s_%s'\n", fieldSetDependency, fieldDependency),
-			)
+			builder.WriteString("Loading depends on field(s): ")
+
+			for idx, dependency := range dependencies {
+				if idx == 0 {
+					builder.WriteString(fmt.Sprintf("'%s_%s'", dependency.FieldSetKey, dependency.FieldKey))
+				} else {
+					builder.WriteString(fmt.Sprintf(", '%s_%s'", dependency.FieldSetKey, dependency.FieldKey))
+				}
+			}
+
+			builder.WriteString("\n")
 		} else {
 			builder.WriteString(spaceBuffer)
 			builder.WriteString("Loading depends on: <custom-load-condition-function>\n")

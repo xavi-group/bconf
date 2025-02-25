@@ -9,30 +9,32 @@ import (
 )
 
 func TestFieldBuilderCreate(t *testing.T) {
-	builder := bconf.FieldBuilder{}
+	var field *bconf.Field
 
-	field := builder.Create()
+	fieldKey := "field_key"
+	fieldType := bconf.String
+
+	field = bconf.NewFieldBuilder(fieldKey, fieldType).Create()
 	if field == nil {
-		t.Fatalf("unexpected nil field from builder create")
+		t.Fatal("unexpected nil field from builder create")
 	}
 
-	field = bconf.NewFieldBuilder("field_key", bconf.String).Create()
+	field = bconf.FB(fieldKey, fieldType).Create()
 	if field == nil {
-		t.Fatalf("unexpected nil field from builder create")
+		t.Fatal("unexpected nil field from builder create")
 	}
 
-	field = bconf.FB("field_key", bconf.String).Create()
+	field = bconf.FB(fieldKey, fieldType).C()
 	if field == nil {
-		t.Fatalf("unexpected nil field from builder create")
+		t.Fatal("unexpected nil field from builder create")
 	}
-}
 
-func TestFieldBuilderKey(t *testing.T) {
-	const fieldKey = "field_key"
+	if field.Type != fieldType {
+		t.Errorf("unexpected field type (expected '%s'), found: '%s'\n", fieldType, field.Type)
+	}
 
-	field := bconf.FB(fieldKey, bconf.String).Create()
 	if field.Key != fieldKey {
-		t.Fatalf("unexpected field key '%s', expected '%s'", field.Key, fieldKey)
+		t.Errorf("unexpected field key (expected '%s'), found: '%s'\n", fieldKey, field.Key)
 	}
 }
 
@@ -41,7 +43,7 @@ func TestFieldBuilderDefault(t *testing.T) {
 
 	field := bconf.FB("field_key", bconf.Duration).Default(fieldDefault).Create()
 	if field.Default != fieldDefault {
-		t.Fatalf("unexpected field default '%v', expected '%v'", field.Default, fieldDefault)
+		t.Fatalf("unexpected field default '%v', expected '%v'\n", field.Default, fieldDefault)
 	}
 }
 
@@ -52,7 +54,7 @@ func TestFieldBuilderValidator(t *testing.T) {
 	field := bconf.FB("field_key", bconf.String).Validator(validator).Create()
 
 	if err := field.Validator(nil); err.Error() != "validator error" {
-		t.Fatalf("unexpected validator error value: %s", err)
+		t.Fatalf("unexpected validator error value: %s\n", err)
 	}
 }
 
@@ -64,16 +66,21 @@ func TestFieldBuilderDefaultGenerator(t *testing.T) {
 
 	generatedDefault, _ := field.DefaultGenerator()
 	if generatedDefault != "default" {
-		t.Fatalf("unexpected generated default value '%s', expected 'default'", generatedDefault)
+		t.Fatalf("unexpected generated default value '%s', expected 'default'\n", generatedDefault)
 	}
 }
 
-func TestFieldBuilderType(t *testing.T) {
-	fieldType := bconf.Float
+func TestFieldBuilderLoadConditions(t *testing.T) {
+	field := bconf.FB("field_key", bconf.String).LoadConditions(
+		bconf.LCB(func(c bconf.LoadConditionValues) (bool, error) {
+			return true, nil
+		}).AddFieldDependencies(
+			bconf.FD("field_set_key", "field_key"),
+		).C(),
+	).C()
 
-	field := bconf.FB("field_key", bconf.Float).Create()
-	if field.Type != fieldType {
-		t.Fatalf("unexpected field type '%s', expected '%s'", field.Type, fieldType)
+	if len(field.LoadConditions) != 1 {
+		t.Fatalf("unexpected length of field load conditions (expected 1), found: %d\n", len(field.LoadConditions))
 	}
 }
 
@@ -82,7 +89,7 @@ func TestFieldBuilderDescription(t *testing.T) {
 
 	field := bconf.FB("field_key", bconf.String).Description(fieldDescription).Create()
 	if field.Description != fieldDescription {
-		t.Fatalf("unexpected field description '%s', expected '%s'", field.Description, fieldDescription)
+		t.Fatalf("unexpected field description (expected '%s'), found: '%s'\n", fieldDescription, field.Description)
 	}
 }
 
@@ -92,7 +99,7 @@ func TestFieldBuilderEnumeration(t *testing.T) {
 
 	if len(field.Enumeration) != len(fieldEnumeration) {
 		t.Fatalf(
-			"unexpected field enumeration length '%d', expected '%d'",
+			"unexpected field enumeration length '%d', expected '%d'\n",
 			len(field.Enumeration), len(fieldEnumeration),
 		)
 	}
@@ -101,7 +108,7 @@ func TestFieldBuilderEnumeration(t *testing.T) {
 func TestFieldBuilderRequired(t *testing.T) {
 	field := bconf.FB("field_key", bconf.String).Required().Create()
 	if field.Required == false {
-		t.Fatalf("expected field to be required")
+		t.Fatal("expected field to be required")
 	}
 }
 
@@ -109,6 +116,6 @@ func TestFieldBuilderSensitive(t *testing.T) {
 	field := bconf.FB("field_key", bconf.String).Sensitive().Create()
 
 	if field.Sensitive == false {
-		t.Fatalf("expected field to be sensitive")
+		t.Fatal("expected field to be sensitive")
 	}
 }

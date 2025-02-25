@@ -1,84 +1,86 @@
 package bconf
 
-func FB(fieldKey, fieldType string) *FieldBuilder {
+func FB(fieldKey, fieldType string) FieldBuilder {
 	return NewFieldBuilder(fieldKey, fieldType)
 }
 
-func NewFieldBuilder(fieldKey, fieldType string) *FieldBuilder {
-	return &FieldBuilder{field: &Field{Key: fieldKey, Type: fieldType}}
+func NewFieldBuilder(fieldKey, fieldType string) FieldBuilder {
+	return &fieldBuilder{field: &Field{Key: fieldKey, Type: fieldType}}
 }
 
-type FieldBuilder struct {
+// --------------------------------------------------------------------------------------------------------------------
+
+type FieldBuilder interface {
+	Default(value any) FieldBuilder
+	Validator(validationFunc func(fieldValue any) error) FieldBuilder
+	DefaultGenerator(defaultGeneratorFunc func() (any, error)) FieldBuilder
+	LoadConditions(conditions ...LoadCondition) FieldBuilder
+	Description(description string) FieldBuilder
+	Enumeration(acceptedValues ...any) FieldBuilder
+	Required() FieldBuilder
+	Sensitive() FieldBuilder
+	Create() *Field
+	C() *Field
+}
+
+// --------------------------------------------------------------------------------------------------------------------
+
+type fieldBuilder struct {
 	field *Field
 }
 
-func (b *FieldBuilder) Default(value any) *FieldBuilder {
-	b.init()
+func (b *fieldBuilder) Default(value any) FieldBuilder {
 	b.field.Default = value
 
 	return b
 }
 
-func (b *FieldBuilder) Validator(value func(fieldValue any) error) *FieldBuilder {
-	b.init()
+func (b *fieldBuilder) Validator(value func(fieldValue any) error) FieldBuilder {
 	b.field.Validator = value
 
 	return b
 }
 
-func (b *FieldBuilder) DefaultGenerator(value func() (any, error)) *FieldBuilder {
-	b.init()
+func (b *fieldBuilder) DefaultGenerator(value func() (any, error)) FieldBuilder {
 	b.field.DefaultGenerator = value
 
 	return b
 }
 
-func (b *FieldBuilder) LoadConditions(value ...LoadCondition) *FieldBuilder {
-	b.init()
+func (b *fieldBuilder) LoadConditions(value ...LoadCondition) FieldBuilder {
 	b.field.LoadConditions = value
 
 	return b
 }
 
-func (b *FieldBuilder) Description(value string) *FieldBuilder {
-	b.init()
+func (b *fieldBuilder) Description(value string) FieldBuilder {
 	b.field.Description = value
 
 	return b
 }
 
-func (b *FieldBuilder) Enumeration(value ...any) *FieldBuilder {
-	b.init()
+func (b *fieldBuilder) Enumeration(value ...any) FieldBuilder {
 	b.field.Enumeration = value
 
 	return b
 }
 
-func (b *FieldBuilder) Required() *FieldBuilder {
-	b.init()
+func (b *fieldBuilder) Required() FieldBuilder {
 	b.field.Required = true
 
 	return b
 }
 
-func (b *FieldBuilder) Sensitive() *FieldBuilder {
-	b.init()
+func (b *fieldBuilder) Sensitive() FieldBuilder {
 	b.field.Sensitive = true
 
 	return b
 }
 
-func (b *FieldBuilder) Create() *Field {
-	b.init()
+func (b *fieldBuilder) Create() *Field {
 	return b.field.Clone()
 }
 
-func (b *FieldBuilder) C() *Field {
+func (b *fieldBuilder) C() *Field {
 	return b.Create()
-}
-
-func (b *FieldBuilder) init() {
-	if b.field == nil {
-		b.field = &Field{}
-	}
 }
