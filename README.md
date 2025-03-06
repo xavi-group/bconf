@@ -1,15 +1,15 @@
-# `bconf`: better / builder configuration for go
+# `bconf`: builder configuration for go
 
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
-[![GoDoc](https://godoc.org/github.com/rheisen/bconf?status.svg)](https://pkg.go.dev/github.com/rheisen/bconf)
-[![Go Report Card](https://goreportcard.com/badge/github.com/rheisen/bconf)](https://goreportcard.com/report/github.com/rheisen/bconf)
-[![Build Status](https://github.com/rheisen/bconf/actions/workflows/golang-test.yml/badge.svg?branch=main)](https://github.com/rheisen/bconf/actions/workflows/golang-test.yml)
-[![codecov.io](https://codecov.io/github/rheisen/bconf/coverage.svg?branch=main)](https://codecov.io/github/rheisen/bconf?branch=main)
+[![GoDoc](https://godoc.org/github.com/xavi-group/bconf?status.svg)](https://pkg.go.dev/github.com/xavi-group/bconf)
+[![Go Report Card](https://goreportcard.com/badge/github.com/xavi-group/bconf)](https://goreportcard.com/report/github.com/xavi-group/bconf)
+[![Build Status](https://github.com/xavi-group/bconf/actions/workflows/golang-test.yml/badge.svg?branch=main)](https://github.com/xavi-group/bconf/actions/workflows/golang-test.yml)
+[![codecov.io](https://codecov.io/github/xavi-group/bconf/coverage.svg?branch=main)](https://codecov.io/github/xavi-group/bconf?branch=main)
 
 `bconf` is a configuration framework that makes it easy to define, load, and validate application configuration values.
 
 ```sh
-go get github.com/rheisen/bconf
+go get github.com/xavi-group/bconf
 ```
 
 ### Why `bconf`
@@ -71,35 +71,23 @@ In Progress
 
 ### Example
 
-Below is an example of a `bconf.AppConfig` defined first with builders, and then with structs. Below these code blocks 
-the behavior of the example is discussed.
+Below is an example of a `bconf.AppConfig` defined with the builder pattern. Below this code block the behavior of the
+example is discussed.
 
 ```go
 configuration := bconf.NewAppConfig(
     "external_http_api",
     "HTTP API for user authentication and authorization",
+    bconf.WithAppIDFunc(),
+    bconf.WithEnvironmentLoader("ext_http_api"),
+    bconf.WithFlagLoader(""),
 )
 
-_ = configuration.SetLoaders(
-    &bconf.EnvironmentLoader{KeyPrefix: "ext_http_api"},
-    &bconf.FlagLoader{},
-)
-
-_ = configuration.AddFieldSets(
-    bconf.NewFieldSetBuilder().Key("app").Fields(
-        bconf.NewFieldBuilder().
-            Key("id").Type(bconf.String).
-            Description("Application identifier").
-            DefaultGenerator(
-                func() (any, error) {
-                    return fmt.Sprintf("%s", uuid.NewV4().String()), nil
-                },
-            ).Create(),
-        bconf.FB(). // FB() is a shorthand function for NewFieldBuilder()
-                Key("session_secret").Type(bconf.String).
-                Description("Application secret for session management").
-                Sensitive().Required().
-                Validator(
+configuration.AddFieldSetGroup(
+    bconf.FSB("api").Fields( // FSB() is a shorthand function for NewFieldSetBuilder()
+        bconf.FB("session_secret", bconf.String). // FB() is a shorthand function for NewFieldBuilder()
+            Description("API secret for session management").Sensitive().Required().
+            Validator(
                 func(fieldValue any) error {
                     secret, _ := fieldValue.(string)
 
@@ -114,30 +102,24 @@ _ = configuration.AddFieldSets(
 
                     return nil
                 },
-            ).Create(),
-    ).Create(),
-    bconf.FSB().Key("log").Fields( // FSB() is a shorthand function for NewFieldSetBuilder()
-        bconf.FB().
-            Key("level").Type(bconf.String).Default("info").
-            Description("Logging level").
-            Enumeration("debug", "info", "warn", "error").Create(),
-        bconf.FB().
-            Key("format").Type(bconf.String).Default("json").
-            Description("Logging format").
-            Enumeration("console", "json").Create(),
-        bconf.FB().
-            Key("color_enabled").Type(bconf.Bool).Default(true).
-            Description("Colored logs when format is 'console'").
-            Create(),
-    ).Create(),
+            ).C(), // C is a shorthand method for Create()
+    ).C(),
+    bconf.FSB("log").Fields(
+        bconf.FB("level", bconf.String).
+            .Default("info").Description("Logging level").Enumeration("debug", "info", "warn", "error").C(),
+        bconf.FB("format", bconf.String).
+            .Default("json").Description("Logging format").Enumeration("console", "json").C(),
+        bconf.FB("color_enabled", bconf.Bool).
+            .Default(true).Description("Colored logs when format is 'console'").C(),
+    ).C(),
 )
 
-// Register with the option to handle --help / -h flag set to true
-if errs := configuration.Register(true); len(errs) > 0 {
+// Load when called without any options will also handle the help flag (--help or -h)
+if errs := configuration.Load(); len(errs) > 0 {
     // handle configuration load errors
 }
 
-// returns the log level found in order of: default -> environment -> flag -> user override
+// returns the log level found in order of: user override -> flag -> environment -> default
 // (based on the loaders set above).
 logLevel, err := configuration.GetString("log", "level")
 if err != nil {
@@ -161,110 +143,8 @@ if err := configuration.FillStruct(logConfig); err != nil {
 fmt.Printf("log config: %v\n", logConfig)
 ```
 
-```go
-configuration := bconf.NewAppConfig(
-    "external_http_api",
-    "HTTP API for user authentication and authorization",
-)
-
-_ = configuration.SetLoaders(
-    &bconf.EnvironmentLoader{KeyPrefix: "ext_http_api"},
-    &bconf.FlagLoader{},
-)
-
-_ = configuration.AddFieldSets(
-    &bconf.FieldSet{
-        Key: "app",
-        Fields: bconf.Fields{
-            {
-                Key:         "id",
-                Type:        bconf.String,
-                Description: "Application identifier",
-                DefaultGenerator: func() (any, error) {
-                    return uuid.NewV4().String(), nil
-                },
-            },
-            {
-                Key:         "session_secret",
-                Type:        bconf.String,
-                Description: "Application secret for session management",
-                Sensitive:   true,
-                Required:    true,
-                Validator: func(fieldValue any) error {
-                    secret, _ := fieldValue.(string)
-
-                    minLength := 20
-                    if len(secret) < minLength {
-                        return fmt.Errorf(
-                            "expected string of minimum %d characters (len=%d)",
-                            minLength,
-                            len(secret),
-                        )
-                    }
-
-                    return nil
-                },
-            },
-        },
-    },
-    &bconf.FieldSet{
-        Key: "log",
-        Fields: bconf.Fields{
-            {
-                Key:         "level",
-                Type:        bconf.String,
-                Description: "Logging level",
-                Default:     "info",
-                Enumeration: []any{"debug", "info", "warn", "error"},
-            },
-            {
-                Key:         "format",
-                Type:        bconf.String,
-                Description: "Logging format",
-                Default:     "json",
-                Enumeration: []any{"console", "json"},
-            },
-            {
-                Key:         "color_enabled",
-                Type:        bconf.Bool,
-                Description: "Colored logs when format is 'console'",
-                Default:     true,
-            },
-        },
-    },
-)
-
-// Register with the option to handle --help / -h flag set to true
-if errs := configuration.Register(true); len(errs) > 0 {
-    // handle configuration load errors here
-}
-
-// returns the log level found in order of: default -> environment -> flag -> user override
-// (based on the loaders set above).
-logLevel, err := configuration.GetString("log", "level")
-if err != nil {
-    // handle error
-}
-
-fmt.Printf("log-level: %s\n", logLevel)
-
-type loggerConfig struct {
-    bconf.ConfigStruct `bconf:"log"`
-    Level string `bconf:"level"`
-    Format string `bconf:"format"`
-    ColorEnabled bool `bconf:"color_enabled"`
-}
-
-logConfig := &loggerConfig{}
-if err := configuration.FillStruct(logConfig); err != nil {
-    // handle error
-}
-
-fmt.Printf("log config: %v\n", logConfig)
-```
-
-In both of the code blocks above, a `bconf.AppConfig` is defined with two field-sets (which group configuration related
-to the application and logging in this case), and registered with help flag parsing.
+In the code blocks above, a `bconf.AppConfig` is defined with two field-sets (which group configuration related to the
+application and logging in this case), and registered with help flag parsing.
 
 If this code was executed in a `main()` function, it would print the log level picked up by the configuration from the
 flags or run-time environment before falling back on the defined default value of "info". It would then fill the
@@ -278,7 +158,7 @@ Usage of 'external_http_api':
 HTTP API for user authentication and authorization
 
 Required Configuration:
-        app_session_secret string
+        api_session_secret string
                 Application secret for session management
                 Environment key: 'EXT_HTTP_API_APP_SESSION_SECRET'
                 Flag argument: '--app_session_secret'
@@ -310,7 +190,7 @@ Optional Configuration:
 This is a simple example where all the configuration code is in one place, but it doesn't need to be!
 
 To view more examples, including a real-world example showcasing how configuration can live alongside package code,
-please visit [github.com/rheisen/bconf-examples](https://github.com/rheisen/bconf-examples).
+please visit [github.com/xavi-group/bconf-examples](https://github.com/xavi-group/bapp-template).
 
 ### Roadmap Features / Improvements
 

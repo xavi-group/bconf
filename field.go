@@ -1,13 +1,16 @@
 package bconf
 
 import (
+	"errors"
 	"fmt"
+	"maps"
 	"reflect"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
 
-	"github.com/rheisen/bconf/bconfconst"
+	"github.com/xavi-group/bconf/bconfconst"
 )
 
 const emptyFieldError = "empty field value"
@@ -50,19 +53,9 @@ type Field struct {
 func (f *Field) Clone() *Field {
 	clone := *f
 
-	clone.fieldFound = make([]string, len(f.fieldFound))
-	copy(clone.fieldFound, f.fieldFound)
-
-	clone.Enumeration = make([]any, len(f.Enumeration))
-	copy(clone.Enumeration, f.Enumeration)
-
-	if len(f.fieldValue) > 0 {
-		clone.fieldValue = make(map[string]any, len(f.fieldValue))
-
-		for key, value := range f.fieldValue {
-			clone.fieldValue[key] = value
-		}
-	}
+	clone.fieldFound = slices.Clone(f.fieldFound)
+	clone.Enumeration = slices.Clone(f.Enumeration)
+	clone.fieldValue = maps.Clone(f.fieldValue)
 
 	if len(f.LoadConditions) > 0 {
 		clone.LoadConditions = make(LoadConditions, len(f.LoadConditions))
@@ -267,7 +260,7 @@ func (f *Field) getValue() (any, error) {
 		return f.overrideValue, nil
 	}
 
-	if f.fieldFound != nil && len(f.fieldFound) > 0 {
+	if len(f.fieldFound) > 0 {
 		value := f.fieldValue[f.fieldFound[len(f.fieldFound)-1]]
 
 		return value, nil
@@ -281,7 +274,7 @@ func (f *Field) getValue() (any, error) {
 		return f.generatedDefault, nil
 	}
 
-	return nil, fmt.Errorf(emptyFieldError)
+	return nil, errors.New(emptyFieldError)
 }
 
 // func (f *Field) getValueFrom(loader string) (any, error) {

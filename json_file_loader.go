@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"slices"
 	"strings"
 )
 
@@ -29,14 +30,12 @@ func NewJSONFileLoaderWithAttributes(decoder JSONUnmarshal, filePaths ...string)
 type JSONFileLoader struct {
 	Decoder   JSONUnmarshal
 	FilePaths []string
-	// Encoder   JSONMarshal
 }
 
 func (l *JSONFileLoader) Clone() *JSONFileLoader {
 	clone := *l
 
-	clone.FilePaths = make([]string, len(l.FilePaths))
-	copy(clone.FilePaths, l.FilePaths)
+	clone.FilePaths = slices.Clone(l.FilePaths)
 
 	return &clone
 }

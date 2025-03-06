@@ -3,42 +3,45 @@ package bconf_test
 import (
 	"testing"
 
-	"github.com/rheisen/bconf"
+	"github.com/xavi-group/bconf"
 )
 
 func TestFieldSetBuilderCreate(t *testing.T) {
-	fieldSet := bconf.NewFieldSetBuilder().Create()
+	fieldSetKey := "field_set_key"
+
+	fieldSet := bconf.NewFieldSetBuilder(fieldSetKey).Create()
 	if fieldSet == nil {
 		t.Fatalf("unexpected nil field-set")
 	}
 
-	fieldSet = bconf.FSB().Create()
-	if fieldSet == nil {
-		t.Fatalf("unexpected nil field-set")
-	}
-
-	builder := &bconf.FieldSetBuilder{}
-
-	fieldSet = builder.Create()
-	if fieldSet == nil {
-		t.Fatalf("unexpected nil field-set")
-	}
-}
-
-func TestFieldSetBuilderKey(t *testing.T) {
-	fieldSetKey := "test_key"
-
-	fieldSet := bconf.FSB().Key(fieldSetKey).Create()
 	if fieldSet.Key != fieldSetKey {
-		t.Fatalf("unexpected field-set key '%s', expected '%s'", fieldSet.Key, fieldSetKey)
+		t.Errorf("unexpected field set key (expected '%s'), found: '%s'\n", fieldSetKey, fieldSet.Key)
+	}
+
+	fieldSet = bconf.FSB(fieldSetKey).Create()
+	if fieldSet == nil {
+		t.Fatalf("unexpected nil field-set")
+	}
+
+	if fieldSet.Key != fieldSetKey {
+		t.Errorf("unexpected field set key (expected '%s'), found: '%s'\n", fieldSetKey, fieldSet.Key)
+	}
+
+	fieldSet = bconf.FSB(fieldSetKey).C()
+	if fieldSet == nil {
+		t.Fatalf("unexpected nil field-set")
+	}
+
+	if fieldSet.Key != fieldSetKey {
+		t.Errorf("unexpected field set key (expected '%s'), found: '%s'\n", fieldSetKey, fieldSet.Key)
 	}
 }
 
 func TestFieldSetBuilderFields(t *testing.T) {
-	fieldKey := "test_field_key"
-	field := bconf.FB().Key(fieldKey).Create()
+	fieldKey := "field_key"
+	field := bconf.FB(fieldKey, bconf.String).Create()
 
-	fieldSet := bconf.FSB().Fields(field).Create()
+	fieldSet := bconf.FSB("field_set_key").Fields(field).Create()
 	if len(fieldSet.Fields) != 1 {
 		t.Fatalf("unexpected fields length '%d', expected 1", len(fieldSet.Fields))
 	}
@@ -49,23 +52,13 @@ func TestFieldSetBuilderFields(t *testing.T) {
 }
 
 func TestFieldSetBuilderLoadConditions(t *testing.T) {
-	loadConditionFieldSetKey := "test_field_set_key"
-	loadConditionFieldKey := "test_field_key"
-
-	fieldSet := bconf.FSB().LoadConditions(
-		bconf.FCB().FieldSetKey(loadConditionFieldSetKey).FieldKey(loadConditionFieldKey).Create(),
-	).Create()
+	fieldSet := bconf.FSB("field_set_key").LoadConditions(
+		bconf.LCB(func(c bconf.FieldValueFinder) (bool, error) {
+			return true, nil
+		}).C(),
+	).C()
 
 	if len(fieldSet.LoadConditions) != 1 {
 		t.Fatalf("unexpected load-conditions length '%d', expected 1", len(fieldSet.LoadConditions))
-	}
-
-	fieldSetKey, fieldKey := fieldSet.LoadConditions[0].FieldDependency()
-	if fieldSetKey != loadConditionFieldSetKey {
-		t.Fatalf("unexpected field-set key '%s', expected '%s'", fieldSetKey, loadConditionFieldSetKey)
-	}
-
-	if fieldKey != loadConditionFieldKey {
-		t.Fatalf("unexpected field key '%s', expected '%s'", fieldKey, loadConditionFieldKey)
 	}
 }

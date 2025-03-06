@@ -50,16 +50,6 @@ func (f *FieldSet) validate() []error {
 		errs = append(errs, fmt.Errorf("field-set key required"))
 	}
 
-	if len(f.LoadConditions) > 0 {
-		for _, loadCondition := range f.LoadConditions {
-			if loadConditionErrs := loadCondition.Validate(); len(loadConditionErrs) > 0 {
-				for _, err := range loadConditionErrs {
-					errs = append(errs, fmt.Errorf("load condition validation error: %w", err))
-				}
-			}
-		}
-	}
-
 	fieldKeys := map[string]struct{}{}
 
 	if len(f.Fields) > 0 {

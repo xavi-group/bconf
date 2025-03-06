@@ -1,45 +1,44 @@
 package bconf
 
-func NewFieldSetBuilder() *FieldSetBuilder {
-	return &FieldSetBuilder{fieldSet: &FieldSet{}}
+func NewFieldSetBuilder(fieldSetKey string) FieldSetBuilder {
+	return &fieldSetBuilder{fieldSet: &FieldSet{Key: fieldSetKey}}
 }
 
-func FSB() *FieldSetBuilder {
-	return NewFieldSetBuilder()
+func FSB(fieldSetKey string) FieldSetBuilder {
+	return NewFieldSetBuilder(fieldSetKey)
 }
 
-type FieldSetBuilder struct {
+// --------------------------------------------------------------------------------------------------------------------
+
+type FieldSetBuilder interface {
+	Fields(fields ...*Field) FieldSetBuilder
+	LoadConditions(conditions ...LoadCondition) FieldSetBuilder
+	Create() *FieldSet
+	C() *FieldSet
+}
+
+// --------------------------------------------------------------------------------------------------------------------
+
+type fieldSetBuilder struct {
 	fieldSet *FieldSet
 }
 
-func (b *FieldSetBuilder) Key(value string) *FieldSetBuilder {
-	b.init()
-	b.fieldSet.Key = value
+func (b *fieldSetBuilder) Fields(fields ...*Field) FieldSetBuilder {
+	b.fieldSet.Fields = fields
 
 	return b
 }
 
-func (b *FieldSetBuilder) Fields(value ...*Field) *FieldSetBuilder {
-	b.init()
-	b.fieldSet.Fields = value
+func (b *fieldSetBuilder) LoadConditions(conditions ...LoadCondition) FieldSetBuilder {
+	b.fieldSet.LoadConditions = conditions
 
 	return b
 }
 
-func (b *FieldSetBuilder) LoadConditions(value ...LoadCondition) *FieldSetBuilder {
-	b.init()
-	b.fieldSet.LoadConditions = value
-
-	return b
-}
-
-func (b *FieldSetBuilder) Create() *FieldSet {
-	b.init()
+func (b *fieldSetBuilder) Create() *FieldSet {
 	return b.fieldSet.Clone()
 }
 
-func (b *FieldSetBuilder) init() {
-	if b.fieldSet == nil {
-		b.fieldSet = &FieldSet{}
-	}
+func (b *fieldSetBuilder) C() *FieldSet {
+	return b.Create()
 }
