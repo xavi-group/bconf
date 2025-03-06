@@ -53,7 +53,7 @@ func TestFieldSetBuilderFields(t *testing.T) {
 
 func TestFieldSetBuilderLoadConditions(t *testing.T) {
 	fieldSet := bconf.FSB("field_set_key").LoadConditions(
-		bconf.LCB(func(c bconf.LoadConditionValues) (bool, error) {
+		bconf.LCB(func(c bconf.FieldValueFinder) (bool, error) {
 			return true, nil
 		}).C(),
 	).C()

@@ -72,7 +72,7 @@ func TestFieldBuilderDefaultGenerator(t *testing.T) {
 
 func TestFieldBuilderLoadConditions(t *testing.T) {
 	field := bconf.FB("field_key", bconf.String).LoadConditions(
-		bconf.LCB(func(c bconf.LoadConditionValues) (bool, error) {
+		bconf.LCB(func(c bconf.FieldValueFinder) (bool, error) {
 			return true, nil
 		}).AddFieldDependencies(
 			bconf.FD("field_set_key", "field_key"),
