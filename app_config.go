@@ -149,6 +149,24 @@ func (c *AppConfig) GetField(fieldSetKey, fieldKey string) (*Field, error) {
 	return field, nil
 }
 
+func (c *AppConfig) SetField(fieldSetKey, fieldKey string, fieldValue any) error {
+	fieldSet, fieldSetFound := c.fieldSets[fieldSetKey]
+	if !fieldSetFound {
+		return fmt.Errorf("field-set with key '%s' not found", fieldSetKey)
+	}
+
+	field, fieldKeyFound := fieldSet.fieldMap[fieldKey]
+	if !fieldKeyFound {
+		return fmt.Errorf("field with key '%s' not found", fieldKey)
+	}
+
+	if err := field.setOverride(fieldValue); err != nil {
+		return fmt.Errorf("problem setting field value: %w", err)
+	}
+
+	return nil
+}
+
 func (c *AppConfig) GetString(fieldSetKey, fieldKey string) (string, error) {
 	fieldValue, err := c.getFieldValue(fieldSetKey, fieldKey, String)
 	if err != nil {
@@ -738,7 +756,7 @@ func (c *AppConfig) shouldLoadFieldSet(fieldSet *FieldSet) (loadFieldSet bool, e
 				)
 			}
 
-			loadCondition.SetFieldDependencies(FieldValue{
+			loadCondition.SetFieldValues(FieldValue{
 				FieldSetKey: dependency.FieldSetKey, FieldKey: dependency.FieldKey, FieldValue: fieldValue,
 			})
 		}
@@ -786,7 +804,7 @@ func (c *AppConfig) shouldLoadField(field *Field, fieldSetKey string) (loadField
 				)
 			}
 
-			loadCondition.SetFieldDependencies(FieldValue{
+			loadCondition.SetFieldValues(FieldValue{
 				FieldSetKey: dependency.FieldSetKey, FieldKey: dependency.FieldKey, FieldValue: fieldValue,
 			})
 		}
