@@ -97,6 +97,7 @@ type AppConfig struct {
 	fieldSets        map[string]*FieldSet
 	fieldSetGroups   fieldSetGroups
 	loaders          []Loader
+	fillStructs      []any
 	warnings         []string
 	orderedFieldSets FieldSets
 	fieldSetLock     sync.Mutex
@@ -129,6 +130,10 @@ func (c *AppConfig) AppID() string {
 
 func (c *AppConfig) AddFieldSetGroup(groupName string, fieldSets FieldSets) {
 	c.fieldSetGroups = append(c.fieldSetGroups, &fieldSetGroup{name: groupName, fieldSets: fieldSets})
+}
+
+func (c *AppConfig) AttachConfigStructs(configStructs ...any) {
+	c.fillStructs = append(c.fillStructs, configStructs...)
 }
 
 func (c *AppConfig) AddFieldSet(fieldSet *FieldSet) {
@@ -322,6 +327,18 @@ func (c *AppConfig) Load(options ...LoadOption) []error {
 			loadErrors = append(loadErrors, fieldSetErrs...)
 			return loadErrors
 		}
+	}
+
+	fillErrors := []error{}
+
+	for _, fillStruct := range c.fillStructs {
+		if fillErr := c.FillStruct(fillStruct); fillErr != nil {
+			fillErrors = append(fillErrors, fillErr)
+		}
+	}
+
+	if len(fillErrors) > 0 {
+		return fillErrors
 	}
 
 	c.loaded = true
