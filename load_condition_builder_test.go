@@ -8,7 +8,7 @@ import (
 
 func TestLoadConditionBuilderCreate(t *testing.T) {
 	condition := bconf.NewLoadConditionBuilder(
-		func(_ bconf.LoadConditionValues) (bool, error) {
+		func(_ bconf.FieldValueFinder) (bool, error) {
 			return true, nil
 		},
 	).Create()
@@ -18,7 +18,7 @@ func TestLoadConditionBuilderCreate(t *testing.T) {
 	}
 
 	condition = bconf.LCB(
-		func(_ bconf.LoadConditionValues) (bool, error) {
+		func(_ bconf.FieldValueFinder) (bool, error) {
 			return true, nil
 		},
 	).Create()
@@ -42,8 +42,8 @@ func TestLoadConditionBuilderFieldDependencies(t *testing.T) {
 	const fieldKey = "test_field_key"
 	const fieldVal = "test_field_value"
 
-	condition := bconf.LCB(func(c bconf.LoadConditionValues) (bool, error) {
-		val, found := c.GetFieldDependency(fieldSetKey, fieldKey)
+	condition := bconf.LCB(func(c bconf.FieldValueFinder) (bool, error) {
+		val, found := c.GetFieldValue(fieldSetKey, fieldKey)
 		if !found {
 			t.Fatal("expected to find field dependency")
 		}
@@ -56,7 +56,7 @@ func TestLoadConditionBuilderFieldDependencies(t *testing.T) {
 		return valString == fieldVal, nil
 	}).AddFieldSetDependencies(fieldSetKey, fieldKey).Create()
 
-	condition.SetFieldDependencies(bconf.FieldValue{
+	condition.SetFieldValues(bconf.FieldValue{
 		FieldSetKey: fieldSetKey,
 		FieldKey:    fieldKey,
 		FieldValue:  fieldVal,
