@@ -6,7 +6,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/rheisen/bconf"
+	"github.com/xavi-group/bconf"
 )
 
 func TestJSONFileLoaderFunctions(t *testing.T) {

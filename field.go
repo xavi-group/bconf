@@ -10,7 +10,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/rheisen/bconf/bconfconst"
+	"github.com/xavi-group/bconf/bconfconst"
 )
 
 const emptyFieldError = "empty field value"

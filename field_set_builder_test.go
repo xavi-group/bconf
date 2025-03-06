@@ -3,7 +3,7 @@ package bconf_test
 import (
 	"testing"
 
-	"github.com/rheisen/bconf"
+	"github.com/xavi-group/bconf"
 )
 
 func TestFieldSetBuilderCreate(t *testing.T) {

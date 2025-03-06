@@ -5,7 +5,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/rheisen/bconf"
+	"github.com/xavi-group/bconf"
 )
 
 func TestFlagLoaderFunctions(t *testing.T) {
@@ -21,15 +21,13 @@ func TestFlagLoaderFunctions(t *testing.T) {
 }
 
 func TestFlagLoaderGetMap(t *testing.T) {
-	const appFieldSetKey = "app"
-
-	const idFieldKey = "id"
-
-	const secretFieldKey = "secret"
-
-	const appIDValue = "test-app-id"
-
-	const appSecretValue = "test-sensitive-value"
+	const (
+		appFieldSetKey = "app"
+		idFieldKey     = "id"
+		secretFieldKey = "secret"
+		appIDValue     = "test-app-id"
+		appSecretValue = "test-sensitive-value"
+	)
 
 	appIDFlagVariable := fmt.Sprintf("--%s_%s=%s", appFieldSetKey, idFieldKey, appIDValue)
 
@@ -47,19 +45,15 @@ func TestFlagLoaderGetMap(t *testing.T) {
 }
 
 func TestFlagLoader(t *testing.T) {
-	const sessionFieldSet = "session"
-
-	const sessionTokenKey = "token"
-
-	const logFieldSet = "log"
-
-	const logLevelKey = "level"
-
-	const logColorKey = "color"
-
-	const sessionKeyValue = "abc123"
-
-	const logLevelValue = "error"
+	const (
+		sessionFieldSet = "session"
+		sessionTokenKey = "token"
+		logFieldSet     = "log"
+		logLevelKey     = "level"
+		logColorKey     = "color"
+		sessionKeyValue = "abc123"
+		logLevelValue   = "error"
+	)
 
 	sessionTokenFlag := fmt.Sprintf("--%s_%s", sessionFieldSet, sessionTokenKey)
 
@@ -131,19 +125,15 @@ func TestFlagLoader(t *testing.T) {
 }
 
 func TestFlagLoaderWithKeyPrefix(t *testing.T) {
-	const sessionFieldSet = "session"
-
-	const sessionTokenKey = "token"
-
-	const logFieldSet = "log"
-
-	const logLevelKey = "level"
-
-	const sessionKeyValue = "abc123"
-
-	const logLevelValue = "error"
-
-	const keyPrefix = "ext_http_api"
+	const (
+		sessionFieldSet = "session"
+		sessionTokenKey = "token"
+		logFieldSet     = "log"
+		logLevelKey     = "level"
+		sessionKeyValue = "abc123"
+		logLevelValue   = "error"
+		keyPrefix       = "ext_http_api"
+	)
 
 	sessionTokenFlag := fmt.Sprintf("--%s_%s_%s", keyPrefix, sessionFieldSet, sessionTokenKey)
 

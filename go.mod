@@ -1,4 +1,4 @@
-module github.com/rheisen/bconf
+module github.com/xavi-group/bconf
 
 go 1.23.0
 

@@ -5,7 +5,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/rheisen/bconf"
+	"github.com/xavi-group/bconf"
 )
 
 func TestFieldBuilderCreate(t *testing.T) {

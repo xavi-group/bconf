@@ -5,7 +5,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/rheisen/bconf/bconfconst"
+	"github.com/xavi-group/bconf/bconfconst"
 )
 
 func TestConstantsMatchReflectKinds(t *testing.T) {
