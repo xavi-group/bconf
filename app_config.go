@@ -370,7 +370,7 @@ func (c *AppConfig) FillStruct(configStruct any) (err error) {
 
 	configStructField := configStructValue.FieldByName("ConfigStruct")
 
-	if configStructField.IsValid() && configStructField.Type().PkgPath() == "github.com/rheisen/bconf" {
+	if configStructField.IsValid() && configStructField.Type().PkgPath() == "github.com/xavi-group/bconf" {
 		var configStructFieldType reflect.StructField
 
 		configStructFieldType, baseFieldSetFound = configStructType.FieldByName("ConfigStruct")
@@ -387,7 +387,7 @@ func (c *AppConfig) FillStruct(configStruct any) (err error) {
 	for i := 0; i < configStructValue.NumField(); i++ {
 		field := configStructType.Field(i)
 
-		if field.Name == "ConfigStruct" && field.Type.PkgPath() == "github.com/rheisen/bconf" {
+		if field.Name == "ConfigStruct" && field.Type.PkgPath() == "github.com/xavi-group/bconf" {
 			continue
 		}
 
