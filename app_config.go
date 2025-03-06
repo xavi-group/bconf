@@ -79,6 +79,7 @@ func NewAppConfig(appName, appDescription string, options ...ConfigOption) *AppC
 	config := &AppConfig{
 		fieldSetGroups:   fieldSetGroups{},
 		fieldSets:        map[string]*FieldSet{},
+		fillStructs:      []any{},
 		loaders:          loaders,
 		warnings:         warnings,
 		orderedFieldSets: FieldSets{},
