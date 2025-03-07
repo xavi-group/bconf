@@ -137,7 +137,7 @@ func loaderWithTestFixture02() *bconf.JSONFileLoader {
 }
 
 func loaderWithBadDecoder() *bconf.JSONFileLoader {
-	badDecoder := func(data []byte, v interface{}) error {
+	badDecoder := func(_ []byte, v interface{}) error {
 		return fmt.Errorf("decoder error")
 	}
 
