@@ -20,6 +20,11 @@ func NewAppConfig(appName, appDescription string, options ...ConfigOption) *AppC
 	appVersion := "unknown"
 	appID := "undefined"
 
+	var (
+		appIDGenerator      func() (any, error)
+		appVersionGenerator func() (any, error)
+	)
+
 	for _, option := range options {
 		switch option.ConfigOptionType() {
 		case configOptionTypeLoaderEnvironment:
@@ -35,7 +40,7 @@ func NewAppConfig(appName, appDescription string, options ...ConfigOption) *AppC
 				warnings = append(warnings, "problem casting flag loader option")
 			}
 		case configOptionTypeLoaderJSONFile:
-			if castOption, ok := option.(configOptionJSONFileLoader); ok {
+			if castOption, ok := option.(*configOptionJSONFileLoader); ok {
 				loaders = append(loaders, castOption.Loader())
 			} else {
 				warnings = append(warnings, "problem casting JSON-file loader option")
@@ -48,7 +53,9 @@ func NewAppConfig(appName, appDescription string, options ...ConfigOption) *AppC
 			}
 		case configOptionTypeAppIDFunc:
 			if castOption, ok := option.(configOptionAppIDFunc); ok {
-				appID = castOption.idFunc()
+				appIDGenerator = func() (any, error) {
+					return castOption.idFunc(), nil
+				}
 			} else {
 				warnings = append(warnings, "problem casting app ID func option")
 			}
@@ -60,7 +67,9 @@ func NewAppConfig(appName, appDescription string, options ...ConfigOption) *AppC
 			}
 		case configOptionTypeAppVersionFunc:
 			if castOption, ok := option.(configOptionAppVersionFunc); ok {
-				appVersion = castOption.versionFunc()
+				appVersionGenerator = func() (any, error) {
+					return castOption.versionFunc(), nil
+				}
 			} else {
 				warnings = append(warnings, "problem casting app version func option")
 			}
@@ -69,11 +78,28 @@ func NewAppConfig(appName, appDescription string, options ...ConfigOption) *AppC
 		}
 	}
 
+	var (
+		appIDField      *Field
+		appVersionField *Field
+	)
+
+	if appVersionGenerator != nil {
+		appVersionField = FB("version", String).DefaultGenerator(appVersionGenerator).C()
+	} else {
+		appVersionField = FB("version", String).Default(appVersion).C()
+	}
+
+	if appIDGenerator != nil {
+		appIDField = FB("id", String).DefaultGenerator(appIDGenerator).C()
+	} else {
+		appIDField = FB("id", String).Default(appID).C()
+	}
+
 	appFieldSet := FSB("app").Fields(
 		FB("name", String).Default(appName).C(),
 		FB("description", String).Default(appDescription).C(),
-		FB("version", String).Default(appVersion).C(),
-		FB("id", String).Default(appID).C(),
+		appVersionField,
+		appIDField,
 	).C()
 
 	config := &AppConfig{
@@ -289,7 +315,7 @@ func (c *AppConfig) Load(options ...LoadOption) []error {
 
 	for _, group := range c.fieldSetGroups {
 		if errs := c.addFieldSets(group.fieldSets...); len(errs) > 0 {
-			err := fmt.Errorf("problem(s) adding '%s' field-set group: %v\n", group.name, errs)
+			err := fmt.Errorf("problem(s) adding '%s' field-set group: %v", group.name, errs)
 
 			groupAddErrors = append(groupAddErrors, err)
 		}
@@ -354,15 +380,20 @@ func (c *AppConfig) FillStruct(configStruct any) (err error) {
 		}
 	}()
 
-	if reflect.TypeOf(configStruct).Kind() != reflect.Pointer {
-		return fmt.Errorf("FillStruct expects a pointer to a struct, found '%s'", reflect.TypeOf(configStruct).Kind())
+	configStructKind := reflect.TypeOf(configStruct).Kind()
+	if configStructKind != reflect.Pointer {
+		return fmt.Errorf("FillStruct expects a pointer to a struct, found '%s'", configStructKind)
 	}
 
 	configStructValue := reflect.Indirect(reflect.ValueOf(configStruct))
+	configStructPointerToKind := configStructValue.Kind()
 	configStructType := configStructValue.Type()
 
-	if configStructValue.Kind() != reflect.Struct {
-		return fmt.Errorf("FillStruct expects a pointer to a struct, found pointer to '%s'", configStructValue.Kind())
+	if configStructPointerToKind != reflect.Struct {
+		return fmt.Errorf(
+			"FillStruct expects a pointer to a struct, found pointer to '%s'",
+			configStructPointerToKind,
+		)
 	}
 
 	baseFieldSetFound := false
@@ -388,6 +419,20 @@ func (c *AppConfig) FillStruct(configStruct any) (err error) {
 		field := configStructType.Field(i)
 
 		if field.Name == "ConfigStruct" && field.Type.PkgPath() == "github.com/xavi-group/bconf" {
+			continue
+		}
+
+		if field.Type.Kind() == reflect.Pointer && reflect.Indirect(reflect.ValueOf(field)).Kind() == reflect.Struct {
+			fieldValue := configStructValue.Field(i)
+
+			if fieldValue.IsNil() {
+				configStructValue.Field(i).Set(reflect.New(field.Type.Elem()))
+			}
+
+			if err := c.FillStruct(configStructValue.Field(i).Interface()); err != nil {
+				return fmt.Errorf("problem filling struct field: %w", err)
+			}
+
 			continue
 		}
 
@@ -463,8 +508,9 @@ func (c *AppConfig) ConfigMap() map[string]map[string]any {
 
 			if field.Type == Duration {
 				// TODO: use higher time grain if duration > 1 hour ?
-				val = val.(time.Duration).Milliseconds()
-				fieldSetMap[fmt.Sprintf("%s_ms", field.Key)] = val
+				valDuration, _ := val.(time.Duration)
+				valMilliseconds := valDuration.Milliseconds()
+				fieldSetMap[fmt.Sprintf("%s_ms", field.Key)] = valMilliseconds
 
 				continue
 			}
@@ -636,8 +682,10 @@ func (c *AppConfig) checkForFieldDependencies(field *Field, parent *FieldSet) er
 		}
 
 		for _, dependency := range dependencies {
-			var fieldSetDependency *FieldSet
-			var found bool
+			var (
+				fieldSetDependency *FieldSet
+				found              bool
+			)
 
 			if dependency.FieldSetKey == "" || dependency.FieldSetKey == parent.Key {
 				fieldSetDependency = parent

@@ -33,20 +33,20 @@ type FieldLocations []FieldLocation
 
 // --------------------------------------------------------------------------------------------------------------------
 
-func newLoadCondition(loadFunc func(c FieldValueFinder) (bool, error)) *loadCondition {
+func newLoadCondition(loadFunc func(f FieldValueFinder) (bool, error)) *loadCondition {
 	return &loadCondition{
 		loadFunc:              loadFunc,
-		fieldDependencies:     FieldLocations{},
 		fieldDependencyValues: map[FieldLocation]any{},
+		fieldDependencies:     FieldLocations{},
 	}
 }
 
 // --------------------------------------------------------------------------------------------------------------------
 
 type loadCondition struct {
-	loadFunc              func(c FieldValueFinder) (bool, error)
-	fieldDependencies     FieldLocations
+	loadFunc              func(f FieldValueFinder) (bool, error)
 	fieldDependencyValues map[FieldLocation]any
+	fieldDependencies     FieldLocations
 }
 
 func (c *loadCondition) Clone() LoadCondition {
@@ -151,7 +151,7 @@ func (c *loadCondition) GetInts(fieldSetKey, fieldKey string) (val []int, found 
 	return
 }
 
-func (c *loadCondition) GetBool(fieldSetKey, fieldKey string) (val bool, found bool, err error) {
+func (c *loadCondition) GetBool(fieldSetKey, fieldKey string) (val, found bool, err error) {
 	fieldValue, found := c.GetFieldValue(fieldSetKey, fieldKey)
 	if !found {
 		return

@@ -25,15 +25,15 @@ linters-settings:
           - "!$test"
         allow:
           - $gostd
-          - github.com/rheisen/bconf
-          - github.com/rheisen/bconf/bconfconst
+          - github.com/xavi-group/bconf
+          - github.com/xavi-group/bconf/bconfconst
       test:
         files:
           - $test
         allow:
           - $gostd
-          - github.com/rheisen/bconf
-          - github.com/rheisen/bconf/bconfconst
+          - github.com/xavi-group/bconf
+          - github.com/xavi-group/bconf/bconfconst
 
 linters:
   disable-all: true

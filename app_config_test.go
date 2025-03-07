@@ -1,5 +1,12 @@
 package bconf_test
 
+import (
+	"testing"
+	"time"
+
+	"github.com/xavi-group/bconf"
+)
+
 // func TestAppConfigHelpString(t *testing.T) {
 // 	appConfig := createBaseAppConfig()
 
@@ -1527,111 +1534,205 @@ package bconf_test
 // 	}
 // }
 
-// func TestAppConfigFillStruct(t *testing.T) {
-// 	//nolint:govet // doesn't need to be optimal for tests
-// 	type TestAPIConfig struct {
-// 		bconf.ConfigStruct `bconf:"api"`
-// 		DBSwitchTime       time.Time     `bconf:"db_switch_time"`
-// 		Host               string        `bconf:"host"`
-// 		ReadTimeout        time.Duration `bconf:"read_timeout"`
-// 		Port               int           `bconf:"port"`
-// 		DebugMode          bool          `bconf:"api.debug_mode"`
-// 		LogPrefix          string        `bconf:"log_prefix"`
-// 	}
+//nolint:govet // doesn't need to be optimal for tests
+type ValidConfigA struct {
+	bconf.ConfigStruct `bconf:"api"`
+	DBSwitchTime       time.Time     `bconf:"db_switch_time"`
+	Host               string        `bconf:"host"`
+	ReadTimeout        time.Duration `bconf:"read_timeout"`
+	Port               int           `bconf:"port"`
+	DebugMode          bool          `bconf:"api.debug_mode"`
+	LogPrefix          string        `bconf:"log_prefix"`
+}
 
-// 	type InvalidAPIConfigStruct struct {
-// 		Host string `bconf:"host"`
-// 		Port int    `bconf:"port"`
-// 	}
+//nolint:govet // doesn't need to be optimal for tests
+type ValidConfigB struct {
+	DBSwitchTime time.Time     `bconf:"api.db_switch_time"`
+	Host         string        `bconf:"api.host"`
+	ReadTimeout  time.Duration `bconf:"api.read_timeout"`
+	Port         int           `bconf:"api.port"`
+	DebugMode    bool          `bconf:"api.debug_mode"`
+	LogPrefix    string        `bconf:"api.log_prefix"`
+}
 
-// 	configStruct := &TestAPIConfig{}
+type ValidConfigC struct {
+	ConfigA *ValidConfigA
+	ConfigB *ValidConfigB
+}
 
-// 	appConfig := createBaseAppConfig()
+func TestValidAppConfigFillStruct(t *testing.T) {
+	const (
+		host        = "localhost"
+		port        = 8080
+		readTimeout = 5 * time.Second
+		debugMode   = true
+	)
 
-// 	dbSwitchTime := time.Now().Add(-100 * time.Hour)
+	var (
+		dbSwitchTime = time.Now().Add(-100 * time.Hour)
+	)
 
-// 	appConfig.AddFieldSet(
-// 		bconf.FSB("api").Fields(
-// 			bconf.FB("host", bconf.String).Default("localhost").C(),
-// 			bconf.FB("port", bconf.Int).Default(8080).C(),
-// 			bconf.FB("read_timeout", bconf.Duration).Default(5*time.Second).C(),
-// 			bconf.FB("db_switch_time", bconf.Time).Default(dbSwitchTime).C(),
-// 			bconf.FB("debug_mode", bconf.Bool).Default(true).C(),
-// 			bconf.FB("log_prefix", bconf.String).C(),
-// 		).C(),
-// 	)
+	appConfig := createBaseAppConfig()
 
-// 	appConfig.AddFieldSet(
-// 		bconf.FSB("ext_api").Fields(
-// 			bconf.FB("host", bconf.String).Default("0.0.0.0").C(),
-// 			bconf.FB("port", bconf.Int).Default(8085).C(),
-// 			bconf.FB("read_timeout", bconf.Duration).Default(10*time.Second).C(),
-// 			bconf.FB("db_switch_time", bconf.Time).Default(dbSwitchTime).C(),
-// 			bconf.FB("debug_mode", bconf.Bool).Default(true).C(),
-// 			bconf.FB("log_prefix", bconf.String).C(),
-// 		).Create(),
-// 	)
+	appConfig.AddFieldSet(
+		bconf.FSB("api").Fields(
+			bconf.FB("host", bconf.String).Default(host).C(),
+			bconf.FB("port", bconf.Int).Default(port).C(),
+			bconf.FB("read_timeout", bconf.Duration).Default(readTimeout).C(),
+			bconf.FB("db_switch_time", bconf.Time).Default(dbSwitchTime).C(),
+			bconf.FB("debug_mode", bconf.Bool).Default(debugMode).C(),
+			bconf.FB("log_prefix", bconf.String).C(),
+		).C(),
+	)
 
-// 	unfillableStruct := TestAPIConfig{}
-// 	if err := appConfig.FillStruct(unfillableStruct); err == nil {
-// 		t.Fatalf("expected error passing concrete struct\n")
-// 	}
+	if errs := appConfig.Load(); len(errs) > 0 {
+		t.Fatalf("unexpected error(s) loading app config: %v\n", errs)
+	}
 
-// 	notAStruct := 20
-// 	if err := appConfig.FillStruct(&notAStruct); err == nil {
-// 		t.Fatalf("expected error passing pointer to a non-struct type\n")
-// 	}
+	configStructA := &ValidConfigA{}
+	if err := appConfig.FillStruct(configStructA); err != nil {
+		t.Fatalf("unexpected error when filling struct 'configStructA': %s\n", err)
+	}
 
-// 	invalidConfigStruct := &InvalidAPIConfigStruct{}
-// 	if err := appConfig.FillStruct(invalidConfigStruct); err == nil {
-// 		t.Fatalf("expected error passing struct missing bconf.ConfigStruct field\n")
-// 	}
+	testHelperCheckValidConfigStructA(t, configStructA, dbSwitchTime)
 
-// 	if err := appConfig.FillStruct(configStruct); err != nil {
-// 		t.Fatalf("problem setting struct values from AppConfig: %s\n", err)
-// 	}
+	configStructB := &ValidConfigB{}
+	if err := appConfig.FillStruct(configStructB); err != nil {
+		t.Fatalf("unexpected error when filling struct 'configStructB': %s\n", err)
+	}
 
-// 	if configStruct.Host != "localhost" {
-// 		t.Errorf("unexpected value for configStruct.Host ('%s'), expected: %s\n", configStruct.Host, "localhost")
-// 	}
+	testHelperCheckValidConfigStructB(t, configStructB, dbSwitchTime)
 
-// 	if configStruct.Port != 8080 {
-// 		t.Errorf("unexpected value for configStruct.Port ('%d'), expected: %d\n", configStruct.Port, 8080)
-// 	}
+	configStructC := &ValidConfigC{}
+	if err := appConfig.FillStruct(configStructC); err != nil {
+		t.Fatalf("unexpected error when filling struct 'configStructC': %s\n", err)
+	}
 
-// 	if configStruct.ReadTimeout != 5*time.Second {
-// 		t.Errorf("unexpected value for configStruct.Host ('%s'), expected: %s\n", configStruct.ReadTimeout, 5*time.Second)
-// 	}
+	testHelperCheckValidConfigStructA(t, configStructC.ConfigA, dbSwitchTime)
+	testHelperCheckValidConfigStructB(t, configStructC.ConfigB, dbSwitchTime)
+}
 
-// 	if configStruct.DBSwitchTime != dbSwitchTime {
-// 		t.Errorf("unexpected value for configStruct.Host ('%s'), expected: %s\n", configStruct.DBSwitchTime, dbSwitchTime)
-// 	}
+func TestValidAppConfigAttachConfigStructs(t *testing.T) {
+	const (
+		host        = "localhost"
+		port        = 8080
+		readTimeout = 5 * time.Second
+		debugMode   = true
+	)
 
-// 	if configStruct.DebugMode != true {
-// 		t.Errorf("unexpected value for configStruct.Host ('%v'), expected: %v\n", configStruct.DebugMode, true)
-// 	}
+	var (
+		dbSwitchTime = time.Now().Add(-100 * time.Hour)
+	)
 
-// 	overrideConfigStruct := &TestAPIConfig{ConfigStruct: bconf.ConfigStruct{FieldSet: "ext_api"}}
+	appConfig := createBaseAppConfig()
 
-// 	if err := appConfig.FillStruct(overrideConfigStruct); err != nil {
-// 		t.Fatalf("problem setting override struct values from AppConfig: %s\n", err)
-// 	}
+	appConfig.AddFieldSet(
+		bconf.FSB("api").Fields(
+			bconf.FB("host", bconf.String).Default(host).C(),
+			bconf.FB("port", bconf.Int).Default(port).C(),
+			bconf.FB("read_timeout", bconf.Duration).Default(readTimeout).C(),
+			bconf.FB("db_switch_time", bconf.Time).Default(dbSwitchTime).C(),
+			bconf.FB("debug_mode", bconf.Bool).Default(debugMode).C(),
+			bconf.FB("log_prefix", bconf.String).C(),
+		).C(),
+	)
 
-// 	if overrideConfigStruct.Host != "0.0.0.0" {
-// 		t.Errorf("unexpected value for overrideConfigStruct.Host ('%s'), expected: %s\n", configStruct.Host, "0.0.0.0")
-// 	}
+	configStructA := &ValidConfigA{}
+	configStructB := &ValidConfigB{}
+	configStructC := &ValidConfigC{}
 
-// 	if overrideConfigStruct.Port != 8085 {
-// 		t.Errorf("unexpected value for overrideConfigStruct.Port ('%d'), expected: %d\n", configStruct.Port, 8085)
-// 	}
-// }
+	appConfig.AttachConfigStructs(
+		configStructA,
+		configStructB,
+		configStructC,
+	)
 
-// func createBaseAppConfig() *bconf.AppConfig {
-// 	appConfig := bconf.NewAppConfig(
-// 		"app",
-// 		"description",
-// 		bconf.WithEnvironmentLoader(""),
-// 	)
+	if errs := appConfig.Load(); len(errs) > 0 {
+		t.Fatalf("unexpected error(s) loading app config: %v\n", errs)
+	}
 
-// 	return appConfig
-// }
+	testHelperCheckValidConfigStructA(t, configStructA, dbSwitchTime)
+	testHelperCheckValidConfigStructB(t, configStructB, dbSwitchTime)
+	testHelperCheckValidConfigStructA(t, configStructC.ConfigA, dbSwitchTime)
+	testHelperCheckValidConfigStructB(t, configStructC.ConfigB, dbSwitchTime)
+}
+
+func testHelperCheckValidConfigStructA(t *testing.T, configStructA *ValidConfigA, dbSwitchTime time.Time) {
+	t.Helper()
+
+	const (
+		host        = "localhost"
+		port        = 8080
+		readTimeout = 5 * time.Second
+		debugMode   = true
+	)
+
+	if configStructA.Host != host {
+		t.Errorf("unexpected config value (expected '%v'), found: '%v'\n", host, configStructA.Host)
+	}
+
+	if configStructA.Port != port {
+		t.Errorf("unexpected config value (expected '%v'), found: '%v'\n", port, configStructA.Port)
+	}
+
+	if configStructA.ReadTimeout != readTimeout {
+		t.Errorf("unexpected config value (expected '%v'), found: '%v'\n", readTimeout, configStructA.ReadTimeout)
+	}
+
+	if !configStructA.DBSwitchTime.Equal(dbSwitchTime) {
+		t.Errorf("unexpected config value (expected '%v'), found: '%v'\n", dbSwitchTime, configStructA.DBSwitchTime)
+	}
+
+	if configStructA.DebugMode != debugMode {
+		t.Errorf("unexpected config value (expected '%v'), found: '%v'\n", debugMode, configStructA.DebugMode)
+	}
+
+	if configStructA.LogPrefix != "" {
+		t.Errorf("unexpected config value (expected '%v'), found: '%v'\n", "", configStructA.LogPrefix)
+	}
+}
+
+func testHelperCheckValidConfigStructB(t *testing.T, configStructB *ValidConfigB, dbSwitchTime time.Time) {
+	t.Helper()
+
+	const (
+		host        = "localhost"
+		port        = 8080
+		readTimeout = 5 * time.Second
+		debugMode   = true
+	)
+
+	if configStructB.Host != host {
+		t.Errorf("unexpected config value (expected '%v'), found: '%v'\n", host, configStructB.Host)
+	}
+
+	if configStructB.Port != port {
+		t.Errorf("unexpected config value (expected '%v'), found: '%v'\n", port, configStructB.Port)
+	}
+
+	if configStructB.ReadTimeout != readTimeout {
+		t.Errorf("unexpected config value (expected '%v'), found: '%v'\n", readTimeout, configStructB.ReadTimeout)
+	}
+
+	if !configStructB.DBSwitchTime.Equal(dbSwitchTime) {
+		t.Errorf("unexpected config value (expected '%v'), found: '%v'\n", dbSwitchTime, configStructB.DBSwitchTime)
+	}
+
+	if configStructB.DebugMode != debugMode {
+		t.Errorf("unexpected config value (expected '%v'), found: '%v'\n", debugMode, configStructB.DebugMode)
+	}
+
+	if configStructB.LogPrefix != "" {
+		t.Errorf("unexpected config value (expected '%v'), found: '%v'\n", "", configStructB.LogPrefix)
+	}
+}
+
+func createBaseAppConfig() *bconf.AppConfig {
+	appConfig := bconf.NewAppConfig(
+		"testapp",
+		"testapp description",
+		bconf.WithEnvironmentLoader(""),
+	)
+
+	return appConfig
+}

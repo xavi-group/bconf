@@ -10,24 +10,43 @@ const (
 	configOptionTypeAppID             = "app_id"
 )
 
+type JSONLoaderConfigOption interface {
+	ConfigOption
+	WithDecoder(decoder JSONUnmarshal)
+}
+
 type ConfigOption interface {
 	ConfigOptionType() string
 }
 
-func WithEnvironmentLoader(keyPrefix string) ConfigOption {
+// WithEnvironmentLoader enables the Environment loader. Only the first value in the keyPrefix parameter will be
+// accepted as a key prefix.
+func WithEnvironmentLoader(keyPrefix ...string) ConfigOption {
+	prefix := ""
+	if len(keyPrefix) > 0 {
+		prefix = keyPrefix[0]
+	}
+
 	return configOptionEnvironmentLoader{
-		keyPrefix: keyPrefix,
+		keyPrefix: prefix,
 	}
 }
 
-func WithFlagLoader(keyPrefix string) ConfigOption {
+// WithFlagLoader enables the Flag loader. Only the first value in the keyPrefix parameter will be
+// accepted as a key prefix.
+func WithFlagLoader(keyPrefix ...string) ConfigOption {
+	prefix := ""
+	if len(keyPrefix) > 0 {
+		prefix = keyPrefix[0]
+	}
+
 	return configOptionFlagLoader{
-		keyPrefix: keyPrefix,
+		keyPrefix: prefix,
 	}
 }
 
-func WithJSONFileLoader(decoder JSONUnmarshal, filePaths ...string) ConfigOption {
-	return configOptionJSONFileLoader{}
+func WithJSONFileLoader(filePaths ...string) JSONLoaderConfigOption {
+	return &configOptionJSONFileLoader{filePaths: filePaths}
 }
 
 func WithAppID(appID string) ConfigOption {
@@ -75,7 +94,11 @@ type configOptionJSONFileLoader struct {
 	filePaths []string
 }
 
-func (o configOptionJSONFileLoader) ConfigOptionType() string {
+func (o *configOptionJSONFileLoader) WithDecoder(decoder JSONUnmarshal) {
+	o.decoder = decoder
+}
+
+func (o *configOptionJSONFileLoader) ConfigOptionType() string {
 	return configOptionTypeLoaderJSONFile
 }
 

@@ -34,11 +34,6 @@ Check out the documentation and introductory examples below, and see if `bconf` 
 * JSON files (`bconf.JSONFileLoader`)
 * Overrides (setter functions)
 
-In Progress
-
-* YAML files (`bconf.YAMLFileLoader`)
-* TOML files (`bconf.TOMLFileLoader`)
-
 ### Getting Values from `bconf.AppConfig`
 
 * `FillStruct(configStruct any) error`
@@ -63,7 +58,7 @@ In Progress
 * Ability to get a safe map of configuration values from the `bconf.AppConfig` `ConfigMap()` function
   * (the configuration map will obfuscate values from fields with `Sensitive` parameter set to `true`)
 * Ability to reload field-sets and individual fields via the `bconf.AppConfig`
-* Ability to fill configuration structures with values from a `bconf.AppConfig`
+* Ability to fill configuration structures with values from a `bconf.AppConfig` using the `FillStruct(...)` method
 
 ### Limitations
 
@@ -190,9 +185,12 @@ Optional Configuration:
 This is a simple example where all the configuration code is in one place, but it doesn't need to be!
 
 To view more examples, including a real-world example showcasing how configuration can live alongside package code,
-please visit [github.com/xavi-group/bconf-examples](https://github.com/xavi-group/bapp-template).
+please visit [github.com/xavi-group/bapp-template](https://github.com/xavi-group/bapp-template).
 
-### Roadmap Features / Improvements
+## Roadmap / Future Improvements
 
+* Additional field types (maps)
+* Support for file watching and notifications for configuration value updates
+* YAML files (`bconf.YAMLFileLoader`)
+* TOML files (`bconf.TOMLFileLoader`)
 * Additional `-h` / `--help` options
-* Additional configuration loaders

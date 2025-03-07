@@ -38,9 +38,11 @@ func TestLoadConditionBuilderCreate(t *testing.T) {
 }
 
 func TestLoadConditionBuilderFieldDependencies(t *testing.T) {
-	const fieldSetKey = "test_field_set_key"
-	const fieldKey = "test_field_key"
-	const fieldVal = "test_field_value"
+	const (
+		fieldSetKey = "test_field_set_key"
+		fieldKey    = "test_field_key"
+		fieldVal    = "test_field_value"
+	)
 
 	condition := bconf.LCB(func(c bconf.FieldValueFinder) (bool, error) {
 		val, found := c.GetFieldValue(fieldSetKey, fieldKey)

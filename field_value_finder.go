@@ -18,9 +18,9 @@ type FieldValueFinder interface {
 }
 
 type FieldValue struct {
+	FieldValue  any
 	FieldSetKey string
 	FieldKey    string
-	FieldValue  any
 }
 
 type FieldValues []FieldValue
