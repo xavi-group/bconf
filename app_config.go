@@ -1016,6 +1016,7 @@ func (c *AppConfig) fieldHelpString(fields map[string]*fieldEntry, key string, m
 
 	if field.Description != "" {
 		builder.WriteString(spaceBuffer)
+
 		if len(spaceBuffer)+len(field.Description) > maxCharLength {
 			wrapStringForBuilder(field.Description, &builder, maxCharLength, spaceBuffer)
 		} else {
@@ -1075,7 +1076,7 @@ func (c *AppConfig) fieldHelpString(fields map[string]*fieldEntry, key string, m
 }
 
 func wrapStringForBuilder(content string, builder *strings.Builder, maxCharLength int, spaceBuffer string) {
-	maxCharLength = maxCharLength - len(spaceBuffer)
+	maxCharLength -= len(spaceBuffer)
 
 	words := strings.Split(content, " ")
 	chunkLen := 0
@@ -1086,14 +1087,15 @@ func wrapStringForBuilder(content string, builder *strings.Builder, maxCharLengt
 		if chunkLen+wordLen > maxCharLength {
 			builder.WriteString("\n")
 			builder.WriteString(spaceBuffer)
-			builder.WriteString(fmt.Sprintf("%s ", word))
+			fmt.Fprintf(builder, "%s ", word)
 
 			chunkLen = 0
 
 			continue
 		}
 
-		builder.WriteString(fmt.Sprintf("%s ", word))
+		fmt.Fprintf(builder, "%s ", word)
+
 		chunkLen += wordLen
 	}
 
