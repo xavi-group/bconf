@@ -529,6 +529,7 @@ func (c *AppConfig) Warnings() []string {
 }
 
 func (c *AppConfig) HelpString() string {
+	maxCharLength := 100
 	builder := strings.Builder{}
 
 	name := c.AppName()
@@ -540,11 +541,13 @@ func (c *AppConfig) HelpString() string {
 		builder.WriteString(fmt.Sprintf("Usage of '%s':\n", os.Args[0]))
 	}
 
-	if description != "" {
+	if description != "" && len(description) > maxCharLength {
+		wrapStringForBuilder(description, &builder, maxCharLength, "")
+	} else if description != "" {
 		builder.WriteString(fmt.Sprintf("%s\n\n", description))
 	}
 
-	c.addFieldsToBuilder(&builder)
+	c.addFieldsToBuilder(&builder, maxCharLength)
 
 	return builder.String()
 }
@@ -937,7 +940,7 @@ func (c *AppConfig) fields() map[string]*fieldEntry {
 	return fields
 }
 
-func (c *AppConfig) addFieldsToBuilder(builder *strings.Builder) {
+func (c *AppConfig) addFieldsToBuilder(builder *strings.Builder, maxCharLength int) {
 	fields := c.fields()
 	if len(fields) > 0 {
 		keys := make([]string, len(fields))
@@ -971,7 +974,7 @@ func (c *AppConfig) addFieldsToBuilder(builder *strings.Builder) {
 			builder.WriteString("Required Configuration:\n")
 
 			for _, key := range requiredFields {
-				fmt.Fprintf(builder, "\t%s", c.fieldHelpString(fields, key))
+				fmt.Fprintf(builder, "\t%s", c.fieldHelpString(fields, key, maxCharLength))
 			}
 		}
 
@@ -979,7 +982,7 @@ func (c *AppConfig) addFieldsToBuilder(builder *strings.Builder) {
 			builder.WriteString("Conditionally Required Configuration:\n")
 
 			for _, key := range conditionallyRequiredFields {
-				fmt.Fprintf(builder, "\t%s", c.fieldHelpString(fields, key))
+				fmt.Fprintf(builder, "\t%s", c.fieldHelpString(fields, key, maxCharLength))
 			}
 		}
 
@@ -991,13 +994,13 @@ func (c *AppConfig) addFieldsToBuilder(builder *strings.Builder) {
 					continue
 				}
 
-				fmt.Fprintf(builder, "\t%s", c.fieldHelpString(fields, key))
+				fmt.Fprintf(builder, "\t%s", c.fieldHelpString(fields, key, maxCharLength))
 			}
 		}
 	}
 }
 
-func (c *AppConfig) fieldHelpString(fields map[string]*fieldEntry, key string) string {
+func (c *AppConfig) fieldHelpString(fields map[string]*fieldEntry, key string, maxCharLength int) string {
 	entry := fields[key]
 	field := entry.field
 	loadConditions := entry.loadConditions
@@ -1013,7 +1016,11 @@ func (c *AppConfig) fieldHelpString(fields map[string]*fieldEntry, key string) s
 
 	if field.Description != "" {
 		builder.WriteString(spaceBuffer)
-		builder.WriteString(fmt.Sprintf("%s\n", field.Description))
+		if len(spaceBuffer)+len(field.Description) > maxCharLength {
+			wrapStringForBuilder(field.Description, &builder, maxCharLength, spaceBuffer)
+		} else {
+			builder.WriteString(fmt.Sprintf("%s\n", field.Description))
+		}
 	}
 
 	if len(field.Enumeration) > 0 {
@@ -1065,4 +1072,30 @@ func (c *AppConfig) fieldHelpString(fields map[string]*fieldEntry, key string) s
 	}
 
 	return builder.String()
+}
+
+func wrapStringForBuilder(content string, builder *strings.Builder, maxCharLength int, spaceBuffer string) {
+	maxCharLength = maxCharLength - len(spaceBuffer)
+
+	words := strings.Split(content, " ")
+	chunkLen := 0
+
+	for _, word := range words {
+		wordLen := len(word) + 1
+
+		if chunkLen+wordLen > maxCharLength {
+			builder.WriteString("\n")
+			builder.WriteString(spaceBuffer)
+			builder.WriteString(fmt.Sprintf("%s ", word))
+
+			chunkLen = 0
+
+			continue
+		}
+
+		builder.WriteString(fmt.Sprintf("%s ", word))
+		chunkLen += wordLen
+	}
+
+	builder.WriteString("\n")
 }

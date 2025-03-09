@@ -7,82 +7,21 @@ import (
 	"github.com/xavi-group/bconf"
 )
 
-// func TestAppConfigHelpString(t *testing.T) {
-// 	appConfig := createBaseAppConfig()
+func TestAppConfigHelpString(t *testing.T) {
+	appConfig := createBaseAppConfig()
 
-// 	const stringFieldKey = "string"
+	appConfig.AddFieldSet(bconf.FSB("example").Fields(
+		bconf.FB("field", bconf.String).Description(
+			"this tests a very long field description that would require line wrapping in order to be formatted ",
+			"correctly according to the bconf help output logic. This should be splitting lines by word, e.g. ",
+			"whenever a space is present. Areallylongwordshouldbesomewhatofaproblem but still handleable.",
+		).C(),
+	).C())
 
-// 	stringField := &bconf.Field{
-// 		Key:         stringFieldKey,
-// 		Type:        bconfconst.String,
-// 		Description: "string field description",
-// 		DefaultGenerator: func() (any, error) {
-// 			return "some_value", nil
-// 		},
-// 		Enumeration: []any{"some_value", "other_value", "another_value"},
-// 	}
+	appConfig.Load()
 
-// 	const secretStringFieldKey = "string_secret"
-
-// 	secretStringField := &bconf.Field{
-// 		Key:       secretStringFieldKey,
-// 		Type:      bconfconst.String,
-// 		Sensitive: true,
-// 		Default:   "some-super-secret-value",
-// 		Validator: func(fieldValue any) error {
-// 			return nil
-// 		},
-// 	}
-
-// 	const intFieldKey = "int"
-
-// 	intField := &bconf.Field{
-// 		Key:      intFieldKey,
-// 		Type:     bconfconst.Int,
-// 		Required: true,
-// 	}
-
-// 	const durationFieldKey = "duration"
-
-// 	durationField := &bconf.Field{
-// 		Key:      durationFieldKey,
-// 		Type:     bconfconst.Duration,
-// 		Required: true,
-// 	}
-
-// 	const defaultFieldSetKey = "default"
-
-// 	defaultFieldSet := &bconf.FieldSet{
-// 		Key:    defaultFieldSetKey,
-// 		Fields: bconf.Fields{stringField, secretStringField, intField},
-// 	}
-
-// 	const conditionalFieldSetKey = "conditional"
-
-// 	conditionalFieldSet := &bconf.FieldSet{
-// 		Key:    conditionalFieldSetKey,
-// 		Fields: bconf.Fields{durationField},
-// 		LoadConditions: bconf.LoadConditions{
-// 			&bconf.FieldCondition{
-// 				FieldSetKey: defaultFieldSetKey,
-// 				FieldKey:    stringFieldKey,
-// 				Condition: func(fieldValue any) (bool, error) {
-// 					val, ok := fieldValue.(string)
-// 					if !ok {
-// 						return false, fmt.Errorf("unexpected field value type")
-// 					}
-
-// 					return val == "some_value", nil
-// 				},
-// 			},
-// 		},
-// 	}
-
-// 	appConfig.AddFieldSet(defaultFieldSet)
-// 	appConfig.AddFieldSet(conditionalFieldSet)
-
-// 	t.Log(appConfig.HelpString())
-// }
+	t.Log(appConfig.HelpString())
+}
 
 // func TestAppConfig(t *testing.T) {
 // 	const appName = "bconf_test_app"
