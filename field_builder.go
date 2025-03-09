@@ -1,5 +1,7 @@
 package bconf
 
+import "strings"
+
 func FB(fieldKey, fieldType string) FieldBuilder {
 	return NewFieldBuilder(fieldKey, fieldType)
 }
@@ -15,7 +17,7 @@ type FieldBuilder interface {
 	Validator(validationFunc func(fieldValue any) error) FieldBuilder
 	DefaultGenerator(defaultGeneratorFunc func() (any, error)) FieldBuilder
 	LoadConditions(conditions ...LoadCondition) FieldBuilder
-	Description(description string) FieldBuilder
+	Description(description string, concat ...string) FieldBuilder
 	Enumeration(acceptedValues ...any) FieldBuilder
 	Required() FieldBuilder
 	Sensitive() FieldBuilder
@@ -53,8 +55,20 @@ func (b *fieldBuilder) LoadConditions(value ...LoadCondition) FieldBuilder {
 	return b
 }
 
-func (b *fieldBuilder) Description(value string) FieldBuilder {
-	b.field.Description = value
+func (b *fieldBuilder) Description(value string, concat ...string) FieldBuilder {
+	if len(concat) > 0 {
+		builder := strings.Builder{}
+
+		builder.WriteString(value)
+
+		for _, concatStr := range concat {
+			builder.WriteString(concatStr)
+		}
+
+		b.field.Description = builder.String()
+	} else {
+		b.field.Description = value
+	}
 
 	return b
 }
