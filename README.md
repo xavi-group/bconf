@@ -25,6 +25,11 @@ to a `bconf.AppConfig`, which provides a unified structure for loading and retri
 Within `bconf.FieldSets`, you define `bconf.Fields`, with each field defining the expected format and behavior of a
 configuration value.
 
+Accessing configuration values can be done by calling lookup methods on a `bconf.AppConfig` with field-set and field
+keys, but it is often easier to define a configuration value structure alongside a `bconf.FieldSet`. A
+`bconf.AppConfig` can fill these configuration value structs at load time, providing easy access to precisely the
+values you need, where you need them.
+
 Check out the documentation and introductory examples below, and see if `bconf` is right for your project!
 
 ### Supported Configuration Sources
@@ -36,6 +41,7 @@ Check out the documentation and introductory examples below, and see if `bconf` 
 
 ### Getting Values from `bconf.AppConfig`
 
+* `AttachConfigStructs(configStructs ...any)` (use prior to `Load(...)`)
 * `FillStruct(configStruct any) error`
 * `GetField(fieldSetKey, fieldKey string) (*bconf.Field, error)`
 * `GetString(fieldSetKey, fieldKey string) (string, error)`
@@ -49,7 +55,7 @@ Check out the documentation and introductory examples below, and see if `bconf` 
 * `GetDuration(fieldSetKey, fieldKey string) (time.Duration, error)`
 * `GetDurations(fieldSetKey, fieldKey string) ([]time.Duration, error)`
 
-### Additional Features
+### Features
 
 * Ability to generate default configuration values with the `bconf.Field` `DefaultGenerator` parameter
 * Ability to define custom configuration value validation with the `bconf.Field` `Validator` parameter
@@ -70,83 +76,135 @@ Below is an example of a `bconf.AppConfig` defined with the builder pattern. Bel
 example is discussed.
 
 ```go
-configuration := bconf.NewAppConfig(
-    "external_http_api",
-    "HTTP API for user authentication and authorization",
-    bconf.WithAppIDFunc(),
-    bconf.WithEnvironmentLoader("ext_http_api"),
-    bconf.WithFlagLoader(""),
+package main
+
+import (
+	"fmt"
+	"os"
+    "time"
+
+	"github.com/segmentio/ksuid"
+	"github.com/xavi-group/bconf"
+	"github.com/xavi-group/bobotel"
+	"github.com/xavi-group/bobzap"
+	"go.uber.org/zap"
 )
 
-configuration.AddFieldSetGroup(
-    bconf.FSB("api").Fields( // FSB() is a shorthand function for NewFieldSetBuilder()
-        bconf.FB("session_secret", bconf.String). // FB() is a shorthand function for NewFieldBuilder()
-            Description("API secret for session management").Sensitive().Required().
-            Validator(
-                func(fieldValue any) error {
-                    secret, _ := fieldValue.(string)
-
-                    minLength := 20
-                    if len(secret) < minLength {
-                        return fmt.Errorf(
-                            "expected string of minimum %d characters (len=%d)",
-                            minLength,
-                            len(secret),
-                        )
-                    }
-
-                    return nil
-                },
-            ).C(), // C is a shorthand method for Create()
-    ).C(),
-    bconf.FSB("log").Fields(
-        bconf.FB("level", bconf.String).
-            .Default("info").Description("Logging level").Enumeration("debug", "info", "warn", "error").C(),
-        bconf.FB("format", bconf.String).
-            .Default("json").Description("Logging format").Enumeration("console", "json").C(),
-        bconf.FB("color_enabled", bconf.Bool).
-            .Default(true).Description("Colored logs when format is 'console'").C(),
-    ).C(),
+const (
+	APIFieldSetKey   = "api"
+	SessionSecretKey = "session_secret"
+	ReadTimeoutKey   = "read_timeout"
+	WriteTimeoutKey  = "write_timeout"
 )
 
-// Load when called without any options will also handle the help flag (--help or -h)
-if errs := configuration.Load(); len(errs) > 0 {
-    // handle configuration load errors
+func APIFieldSets() bconf.FieldSets {
+	checkValidSessionSecret := func(fieldValue any) error {
+		secret, _ := fieldValue.(string)
+
+		minLength := 20
+		if len(secret) < minLength {
+			return fmt.Errorf(
+				"expected string of minimum %d characters (len=%d)",
+				minLength,
+				len(secret),
+			)
+		}
+
+		return nil
+	}
+
+	// FSB() is a shorthand function for NewFieldSetBuilder()
+	// FB() is a shorthand function for NewFieldBuilder()
+	// C is a shorthand method for Create()
+	return bconf.FieldSets{
+		bconf.FSB(APIFieldSetKey).
+			Fields(
+				bconf.FB(SessionSecretKey, bconf.String).Sensitive().Required().
+					Description("API secret for session management").
+					Validator(checkValidSessionSecret).C(),
+				bconf.FB(ReadTimeoutKey, bconf.Duration).Default(5*time.Second).
+					Description("API read timeout").C(),
+				bconf.FB(WriteTimeoutKey, bconf.Duration).Default(5*time.Second).
+					Description("API write timeout").C(),
+			).C(),
+	}
 }
 
-// returns the log level found in order of: user override -> flag -> environment -> default
-// (based on the loaders set above).
-logLevel, err := configuration.GetString("log", "level")
-if err != nil {
-    // handle error
+type APIConfig struct {
+	bconf.ConfigStruct `bconf:"api"`
+	LogConfig          *bobzap.Config
+	AppID              string        `bconf:"app.id"`
+	SessionSecret      string        `bconf:"session_secret"`
+	ReadTimeout        time.Duration `bconf:"read_timeout"`
+	WriteTimeout       time.Duration `bconf:"write_timeout"`
 }
 
-fmt.Printf("log-level: %s\n", logLevel)
+func main() {
+    config := bconf.NewAppConfig(
+        "external_http_api",
+        "HTTP API for user authentication and authorization",
+        bconf.WithAppIDFunc(func() string { return ksuid.New().String() }),
+        bconf.WithAppVersion("1.0.0"),
+        bconf.WithEnvironmentLoader("ext_http_api"),
+        bconf.WithFlagLoader(),
+    )
 
-type loggerConfig struct {
-    bconf.ConfigStruct `bconf:"log"`
-    Level string `bconf:"level"`
-    Format string `bconf:"format"`
-    ColorEnabled bool `bconf:"color_enabled"`
+    config.AddFieldSetGroup("bobzap", bobzap.FieldSets())
+    config.AddFieldSetGroup("bobotel", bobotel.FieldSets())
+    config.AddFieldSetGroup("api", APIFieldSets())
+
+    apiConfig := &APIConfig{}
+
+    config.AttachConfigStructs(
+        bobzap.NewConfig(),
+        bobotel.NewConfig(),
+        apiConfig,
+    )
+
+    // Load when called without any options will also handle the help flag (--help or -h)
+    if errs := config.Load(); len(errs) > 0 {
+        fmt.Printf("problem(s) loading application configuration: %v\n", errs)
+        os.Exit(1)
+    }
+
+    // -- Initialize application observability --
+    if err := bobotel.InitializeTraceProvider(); err != nil {
+        fmt.Printf("problem initializing application tracer: %s\n", err)
+        os.Exit(1)
+    }
+
+    if err := bobzap.InitializeGlobalLogger(); err != nil {
+        fmt.Printf("problem initializing application logger: %s\n", err)
+        os.Exit(1)
+    }
+
+    log := bobzap.NewLogger("main")
+
+    log.Info(
+        fmt.Sprintf("%s initialized successfully", config.AppName()),
+        zap.Any("app_config", config.ConfigMap()),
+        zap.Strings("warnings", config.Warnings()),
+    )
+
+    // -- Configuration access examples --
 }
-
-logConfig := &loggerConfig{}
-if err := configuration.FillStruct(logConfig); err != nil {
-    // handle error
-}
-
-fmt.Printf("log config: %v\n", logConfig)
 ```
 
-In the code blocks above, a `bconf.AppConfig` is defined with two field-sets (which group configuration related to the
-application and logging in this case), and registered with help flag parsing.
+In the code block above, a `bconf.AppConfig` is defined with three field-set groups (which group configuration related
+to the logging, tracing, and api in this case). Two field-set groups are from separate packages (bobzap and bobotel).
+One is defined right above the main function (api). The api field-set group is defined above to showcase how a
+field-set and configuration value struct are implemented, but in practice it would likely be defined within an HTTP
+routing package.
 
-If this code was executed in a `main()` function, it would print the log level picked up by the configuration from the
-flags or run-time environment before falling back on the defined default value of "info". It would then fill the
-`logConfig` struct with multiple values from the log field-set fields, and print those values as well.
+The APIConfig value struct is written to showcase the flexibility that exists when filling a configuration value struct.
+In this case, it nests the values for the logging configuration as defined by the `bobzap` package, opts to acquire
+the `app.id` configuration value from the `app` field-set, and sets a default field-set of `api`, which is used to
+locate the `session_secret`, `read_timeout`, and `write_timeout` fields. Although this example is contrived, it is
+useful when defining more complex service-like packages.
 
-If this code was executed inside the `main()` function and passed a `--help` or `-h` flag, it would print the following
-output:
+The easiest way to see your application configuration is to execute your applicaiton with the `-h` or `--help` flag.
+The help output will take into account which loaders you have configured, and highlights which configuration values
+are required, conditionally required, or optional. Additional help options are in progress.
 
 ```
 Usage of 'external_http_api':
@@ -154,43 +212,87 @@ HTTP API for user authentication and authorization
 
 Required Configuration:
         api_session_secret string
-                Application secret for session management
-                Environment key: 'EXT_HTTP_API_APP_SESSION_SECRET'
-                Flag argument: '--app_session_secret'
+                API secret for session management
+                Environment key: 'EXT_HTTP_API_API_SESSION_SECRET'
+                Flag argument: '--api_session_secret'
+Conditionally Required Configuration:
+        otlp_host string
+                Environment key: 'EXT_HTTP_API_OTLP_HOST'
+                Flag argument: '--otlp_host'
+                Loading depends on field(s): 'otel_exporters'
 Optional Configuration:
+        api_read_timeout time.Duration
+                API read timeout
+                Default value: '5s'
+                Environment key: 'EXT_HTTP_API_API_READ_TIMEOUT'
+                Flag argument: '--api_read_timeout'
+        api_write_timeout time.Duration
+                API write timeout
+                Default value: '5s'
+                Environment key: 'EXT_HTTP_API_API_WRITE_TIMEOUT'
+                Flag argument: '--api_write_timeout'
         app_id string
-                Application identifier
                 Default value: <generated-at-run-time>
                 Environment key: 'EXT_HTTP_API_APP_ID'
                 Flag argument: '--app_id'
-        log_color_enabled bool
-                Colored logs when format is 'console'
+        app_version string
+                Default value: '1.0.0'
+                Environment key: 'EXT_HTTP_API_APP_VERSION'
+                Flag argument: '--app_version'
+        log_color bool
                 Default value: 'true'
-                Environment key: 'EXT_HTTP_API_LOG_COLOR_ENABLED'
-                Flag argument: '--log_color_enabled'
+                Environment key: 'EXT_HTTP_API_LOG_COLOR'
+                Flag argument: '--log_color'
+        log_config string
+                Accepted values: ['production', 'development']
+                Default value: 'production'
+                Environment key: 'EXT_HTTP_API_LOG_CONFIG'
+                Flag argument: '--log_config'
         log_format string
-                Logging format
                 Accepted values: ['console', 'json']
                 Default value: 'json'
                 Environment key: 'EXT_HTTP_API_LOG_FORMAT'
                 Flag argument: '--log_format'
         log_level string
-                Logging level
-                Accepted values: ['debug', 'info', 'warn', 'error']
+                Accepted values: ['debug', 'info', 'warn', 'error', 'dpanic', 'panic', 'fatal']
                 Default value: 'info'
                 Environment key: 'EXT_HTTP_API_LOG_LEVEL'
                 Flag argument: '--log_level'
+        otel_console_format string
+                Accepted values: ['production', 'pretty']
+                Default value: 'production'
+                Environment key: 'EXT_HTTP_API_OTEL_CONSOLE_FORMAT'
+                Flag argument: '--otel_console_format'
+        otel_exporters []string
+                Default value: '[console]'
+                Environment key: 'EXT_HTTP_API_OTEL_EXPORTERS'
+                Flag argument: '--otel_exporters'
+        otlp_endpoint_kind string
+                Accepted values: ['agent', 'collector']
+                Default value: 'agent'
+                Environment key: 'EXT_HTTP_API_OTLP_ENDPOINT_KIND'
+                Flag argument: '--otlp_endpoint_kind'
+                Loading depends on field(s): 'otel_exporters'
+        otlp_port int
+                Default value: '6831'
+                Environment key: 'EXT_HTTP_API_OTLP_PORT'
+                Flag argument: '--otlp_port'
+                Loading depends on field(s): 'otel_exporters'
 ```
-
-This is a simple example where all the configuration code is in one place, but it doesn't need to be!
 
 To view more examples, including a real-world example showcasing how configuration can live alongside package code,
 please visit [github.com/xavi-group/bapp-template](https://github.com/xavi-group/bapp-template).
 
+If you are interested in quickly configuring your application with tracing and logging as showcased in the example
+above, consider checking out [github.com/xavi-group/bobzap](https://github.com/xavi-group/bobzap)
+and [github.com/xavi-group/bobotel](https://github.com/xavi-group/bobotel).
+
 ## Roadmap / Future Improvements
 
-* Additional field types (maps)
-* Support for file watching and notifications for configuration value updates
+* Additional field type support (maps)
+* File watching and notifications for configuration value updates
 * YAML files (`bconf.YAMLFileLoader`)
 * TOML files (`bconf.TOMLFileLoader`)
 * Additional `-h` / `--help` options
+* Provide common field validator functions
+* Implement `Validators` and `Transformers` on `bconf.Field`
