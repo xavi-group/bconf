@@ -930,7 +930,7 @@ func (c *AppConfig) fields() map[string]*fieldEntry {
 				entry.loadConditions = append(entry.loadConditions, field.LoadConditions...)
 			}
 
-			fields[fmt.Sprintf("%s_%s", fieldSetKey, field.Key)] = &entry
+			fields[fmt.Sprintf("%s.%s", fieldSetKey, field.Key)] = &entry
 		}
 	}
 
@@ -1051,9 +1051,9 @@ func (c *AppConfig) fieldHelpString(fields map[string]*fieldEntry, key string) s
 
 			for idx, dependency := range dependencies {
 				if idx == 0 {
-					builder.WriteString(fmt.Sprintf("'%s_%s'", dependency.FieldSetKey, dependency.FieldKey))
+					builder.WriteString(fmt.Sprintf("'%s.%s'", dependency.FieldSetKey, dependency.FieldKey))
 				} else {
-					builder.WriteString(fmt.Sprintf(", '%s_%s'", dependency.FieldSetKey, dependency.FieldKey))
+					builder.WriteString(fmt.Sprintf(", '%s.%s'", dependency.FieldSetKey, dependency.FieldKey))
 				}
 			}
 
