@@ -191,7 +191,7 @@ func (f *Field) validateGeneratedDefaultFieldType(fieldType string) error {
 }
 
 func (f *Field) validateEnumerationValuesFieldType(fieldType string) []error {
-	if f.Enumeration == nil || len(f.Enumeration) < 1 {
+	if len(f.Enumeration) < 1 {
 		return nil
 	}
 
