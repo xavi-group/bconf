@@ -79,64 +79,64 @@ example is discussed.
 package main
 
 import (
-	"fmt"
-	"os"
+    "fmt"
+    "os"
     "time"
 
-	"github.com/segmentio/ksuid"
-	"github.com/xavi-group/bconf"
-	"github.com/xavi-group/bobotel"
-	"github.com/xavi-group/bobzap"
-	"go.uber.org/zap"
+    "github.com/segmentio/ksuid"
+    "github.com/xavi-group/bconf"
+    "github.com/xavi-group/bobotel"
+    "github.com/xavi-group/bobzap"
+    "go.uber.org/zap"
 )
 
 const (
-	APIFieldSetKey   = "api"
-	SessionSecretKey = "session_secret"
-	ReadTimeoutKey   = "read_timeout"
-	WriteTimeoutKey  = "write_timeout"
+    APIFieldSetKey   = "api"
+    SessionSecretKey = "session_secret"
+    ReadTimeoutKey   = "read_timeout"
+    WriteTimeoutKey  = "write_timeout"
 )
 
 func APIFieldSets() bconf.FieldSets {
-	checkValidSessionSecret := func(fieldValue any) error {
-		secret, _ := fieldValue.(string)
+    checkValidSessionSecret := func(fieldValue any) error {
+        secret, _ := fieldValue.(string)
 
-		minLength := 20
-		if len(secret) < minLength {
-			return fmt.Errorf(
-				"expected string of minimum %d characters (len=%d)",
-				minLength,
-				len(secret),
-			)
-		}
+        minLength := 20
+        if len(secret) < minLength {
+            return fmt.Errorf(
+                "expected string of minimum %d characters (len=%d)",
+                minLength,
+                len(secret),
+            )
+        }
 
-		return nil
-	}
+        return nil
+    }
 
-	// FSB() is a shorthand function for NewFieldSetBuilder()
-	// FB() is a shorthand function for NewFieldBuilder()
-	// C is a shorthand method for Create()
-	return bconf.FieldSets{
-		bconf.FSB(APIFieldSetKey).
-			Fields(
-				bconf.FB(SessionSecretKey, bconf.String).Sensitive().Required().
-					Description("API secret for session management").
-					Validator(checkValidSessionSecret).C(),
-				bconf.FB(ReadTimeoutKey, bconf.Duration).Default(5*time.Second).
-					Description("API read timeout").C(),
-				bconf.FB(WriteTimeoutKey, bconf.Duration).Default(5*time.Second).
-					Description("API write timeout").C(),
-			).C(),
-	}
+    // FSB() is a shorthand function for NewFieldSetBuilder()
+    // FB() is a shorthand function for NewFieldBuilder()
+    // C is a shorthand method for Create()
+    return bconf.FieldSets{
+        bconf.FSB(APIFieldSetKey).
+            Fields(
+                bconf.FB(SessionSecretKey, bconf.String).Sensitive().Required().
+                    Description("API secret for session management").
+                    Validator(checkValidSessionSecret).C(),
+                bconf.FB(ReadTimeoutKey, bconf.Duration).Default(5*time.Second).
+                    Description("API read timeout").C(),
+                bconf.FB(WriteTimeoutKey, bconf.Duration).Default(5*time.Second).
+                    Description("API write timeout").C(),
+            ).C(),
+    }
 }
 
 type APIConfig struct {
-	bconf.ConfigStruct `bconf:"api"`
-	LogConfig          *bobzap.Config
-	AppID              string        `bconf:"app.id"`
-	SessionSecret      string        `bconf:"session_secret"`
-	ReadTimeout        time.Duration `bconf:"read_timeout"`
-	WriteTimeout       time.Duration `bconf:"write_timeout"`
+    bconf.ConfigStruct `bconf:"api"`
+    LogConfig          *bobzap.Config
+    AppID              string        `bconf:"app.id"`
+    SessionSecret      string        `bconf:"session_secret"`
+    ReadTimeout        time.Duration `bconf:"read_timeout"`
+    WriteTimeout       time.Duration `bconf:"write_timeout"`
 }
 
 func main() {
