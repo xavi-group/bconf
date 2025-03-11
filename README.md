@@ -141,11 +141,11 @@ type APIConfig struct {
 
 func main() {
     config := bconf.NewAppConfig(
-        "external_http_api",
+        "auth_service_example",
         "HTTP API for user authentication and authorization",
         bconf.WithAppIDFunc(func() string { return ksuid.New().String() }),
         bconf.WithAppVersion("1.0.0"),
-        bconf.WithEnvironmentLoader("ext_http_api"),
+        bconf.WithEnvironmentLoader("auth_svc"),
         bconf.WithFlagLoader(),
     )
 
@@ -207,77 +207,89 @@ The help output will take into account which loaders you have configured, and hi
 are required, conditionally required, or optional. Additional help options are in progress.
 
 ```
-Usage of 'external_http_api':
+Usage of 'auth_service_example':
 HTTP API for user authentication and authorization
 
 Required Configuration:
-        api_session_secret string
-                API secret for session management
-                Environment key: 'EXT_HTTP_API_API_SESSION_SECRET'
+        api.session_secret string
+                API secret for session management.
+                Environment key: 'AUTH_SVC_API_SESSION_SECRET'
                 Flag argument: '--api_session_secret'
 Conditionally Required Configuration:
-        otlp_host string
-                Environment key: 'EXT_HTTP_API_OTLP_HOST'
+        otlp.host string
+                Otlp host defines the host location of the trace collector.
+                Environment key: 'AUTH_SVC_OTLP_HOST'
                 Flag argument: '--otlp_host'
-                Loading depends on field(s): 'otel_exporters'
+                Loading depends on field(s): 'otel.exporters'
 Optional Configuration:
-        api_read_timeout time.Duration
-                API read timeout
+        api.read_timeout time.Duration
+                Timeout for HTTP read operations.
                 Default value: '5s'
-                Environment key: 'EXT_HTTP_API_API_READ_TIMEOUT'
+                Environment key: 'AUTH_SVC_API_READ_TIMEOUT'
                 Flag argument: '--api_read_timeout'
-        api_write_timeout time.Duration
-                API write timeout
+        api.write_timeout time.Duration
+                Timeout for HTTP write operations.
                 Default value: '5s'
-                Environment key: 'EXT_HTTP_API_API_WRITE_TIMEOUT'
+                Environment key: 'AUTH_SVC_API_WRITE_TIMEOUT'
                 Flag argument: '--api_write_timeout'
-        app_id string
+        app.id string
                 Default value: <generated-at-run-time>
-                Environment key: 'EXT_HTTP_API_APP_ID'
+                Environment key: 'AUTH_SVC_APP_ID'
                 Flag argument: '--app_id'
-        app_version string
+        app.version string
                 Default value: '1.0.0'
-                Environment key: 'EXT_HTTP_API_APP_VERSION'
+                Environment key: 'AUTH_SVC_APP_VERSION'
                 Flag argument: '--app_version'
-        log_color bool
+        log.color bool
+                Log color defines whether console formatted logs are rendered in color.
                 Default value: 'true'
-                Environment key: 'EXT_HTTP_API_LOG_COLOR'
+                Environment key: 'AUTH_SVC_LOG_COLOR'
                 Flag argument: '--log_color'
-        log_config string
+        log.config string
+                Log config defines whether the Zap will be configured with development or production defaults. 
+                Note: `development` defaults to debug log level and console format, `production` defaults to info log 
+                level and json format. 
                 Accepted values: ['production', 'development']
                 Default value: 'production'
-                Environment key: 'EXT_HTTP_API_LOG_CONFIG'
+                Environment key: 'AUTH_SVC_LOG_CONFIG'
                 Flag argument: '--log_config'
-        log_format string
+        log.format string
+                Log format defines the format logs will be emitted in (overrides log config defaults).
                 Accepted values: ['console', 'json']
-                Default value: 'json'
-                Environment key: 'EXT_HTTP_API_LOG_FORMAT'
+                Environment key: 'AUTH_SVC_LOG_FORMAT'
                 Flag argument: '--log_format'
-        log_level string
+        log.level string
+                Log level defines the level at which logs will be emitted (overrides log config defaults).
                 Accepted values: ['debug', 'info', 'warn', 'error', 'dpanic', 'panic', 'fatal']
-                Default value: 'info'
-                Environment key: 'EXT_HTTP_API_LOG_LEVEL'
+                Environment key: 'AUTH_SVC_LOG_LEVEL'
                 Flag argument: '--log_level'
-        otel_console_format string
+        otel.console_format string
+                Otel console format defines the format of traces output to the console where 'pretty' is more 
+                human readable (adds whitespace). 
                 Accepted values: ['production', 'pretty']
                 Default value: 'production'
-                Environment key: 'EXT_HTTP_API_OTEL_CONSOLE_FORMAT'
+                Environment key: 'AUTH_SVC_OTEL_CONSOLE_FORMAT'
                 Flag argument: '--otel_console_format'
-        otel_exporters []string
+        otel.exporters []string
+                Otel exporters defines where traces will be sent (accepted values are 'console' and 'otlp'). 
+                Exporters accepts a list and can be configured to export traces to multiple destinations. 
                 Default value: '[console]'
-                Environment key: 'EXT_HTTP_API_OTEL_EXPORTERS'
+                Environment key: 'AUTH_SVC_OTEL_EXPORTERS'
                 Flag argument: '--otel_exporters'
-        otlp_endpoint_kind string
-                Accepted values: ['agent', 'collector']
-                Default value: 'agent'
-                Environment key: 'EXT_HTTP_API_OTLP_ENDPOINT_KIND'
+        otlp.endpoint_kind string
+                Otlp endpoint kind defines the protocol used by the trace collector.
+                Accepted values: ['http', 'grpc']
+                Default value: 'http'
+                Environment key: 'AUTH_SVC_OTLP_ENDPOINT_KIND'
                 Flag argument: '--otlp_endpoint_kind'
-                Loading depends on field(s): 'otel_exporters'
-        otlp_port int
-                Default value: '6831'
-                Environment key: 'EXT_HTTP_API_OTLP_PORT'
+                Loading depends on field(s): 'otel.exporters'
+        otlp.port int
+                Otlp port defines the port of the trace collector process. For a GRPC endpoint the default is 
+                4317. 
+                Default value: '4318'
+                Environment key: 'AUTH_SVC_OTLP_PORT'
                 Flag argument: '--otlp_port'
-                Loading depends on field(s): 'otel_exporters'
+                Loading depends on field(s): 'otel.exporters'
 ```
 
 To view more examples, including a real-world example showcasing how configuration can live alongside package code,
