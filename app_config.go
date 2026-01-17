@@ -74,7 +74,9 @@ func NewAppConfig(appName, appDescription string, options ...ConfigOption) *AppC
 				warnings = append(warnings, "problem casting app version func option")
 			}
 		default:
-			warnings = append(warnings, fmt.Sprintf("unsupported config option '%s'", option.ConfigOptionType()))
+			warnings = append(
+				warnings, fmt.Sprintf("unsupported config option '%s'", option.ConfigOptionType()),
+			)
 		}
 	}
 
@@ -334,7 +336,10 @@ func (c *AppConfig) Load(options ...LoadOption) []error {
 		case loadOptionTypeDisableHelpFlag:
 			handleHelpFlag = false
 		default:
-			c.warnings = append(c.warnings, fmt.Sprintf("unsupported load option '%s'", option.LoadOptionType()))
+			c.warnings = append(
+				c.warnings,
+				fmt.Sprintf("unsupported load option '%s'", option.LoadOptionType()),
+			)
 		}
 	}
 
@@ -536,15 +541,15 @@ func (c *AppConfig) HelpString() string {
 	description := c.AppDescription()
 
 	if name != "" {
-		builder.WriteString(fmt.Sprintf("Usage of '%s':\n", name))
+		fmt.Fprintf(&builder, "Usage of '%s':\n", name)
 	} else {
-		builder.WriteString(fmt.Sprintf("Usage of '%s':\n", os.Args[0]))
+		fmt.Fprintf(&builder, "Usage of '%s':\n", os.Args[0])
 	}
 
 	if description != "" && len(description) > maxCharLength {
 		wrapStringForBuilder(description, &builder, maxCharLength, "")
 	} else if description != "" {
-		builder.WriteString(fmt.Sprintf("%s\n\n", description))
+		fmt.Fprintf(&builder, "%s\n\n", description)
 	}
 
 	c.addFieldsToBuilder(&builder, maxCharLength)
@@ -1012,7 +1017,7 @@ func (c *AppConfig) fieldHelpString(fields map[string]*fieldEntry, key string, m
 	builder := strings.Builder{}
 	spaceBuffer := "\t\t"
 
-	builder.WriteString(fmt.Sprintf("%s %s\n", key, field.Type))
+	fmt.Fprintf(&builder, "%s %s\n", key, field.Type)
 
 	if field.Description != "" {
 		builder.WriteString(spaceBuffer)
@@ -1020,13 +1025,13 @@ func (c *AppConfig) fieldHelpString(fields map[string]*fieldEntry, key string, m
 		if len(spaceBuffer)+len(field.Description) > maxCharLength {
 			wrapStringForBuilder(field.Description, &builder, maxCharLength, spaceBuffer)
 		} else {
-			builder.WriteString(fmt.Sprintf("%s\n", field.Description))
+			fmt.Fprintf(&builder, "%s\n", field.Description)
 		}
 	}
 
 	if len(field.Enumeration) > 0 {
 		builder.WriteString(spaceBuffer)
-		builder.WriteString(fmt.Sprintf("Accepted values: %s\n", field.enumerationString()))
+		fmt.Fprintf(&builder, "Accepted values: %s\n", field.enumerationString())
 	}
 
 	if field.Default != nil && field.Sensitive {
@@ -1034,7 +1039,7 @@ func (c *AppConfig) fieldHelpString(fields map[string]*fieldEntry, key string, m
 		builder.WriteString("Default value: '<sensitive-value>'\n")
 	} else if field.Default != nil {
 		builder.WriteString(spaceBuffer)
-		builder.WriteString(fmt.Sprintf("Default value: '%v'\n", field.Default))
+		fmt.Fprintf(&builder, "Default value: '%v'\n", field.Default)
 	}
 
 	if field.DefaultGenerator != nil {
@@ -1046,7 +1051,7 @@ func (c *AppConfig) fieldHelpString(fields map[string]*fieldEntry, key string, m
 		helpString := loader.HelpString(entry.fieldSetKey, entry.field.Key)
 		if helpString != "" {
 			builder.WriteString(spaceBuffer)
-			builder.WriteString(fmt.Sprintf("%s\n", helpString))
+			fmt.Fprintf(&builder, "%s\n", helpString)
 		}
 	}
 
@@ -1059,9 +1064,9 @@ func (c *AppConfig) fieldHelpString(fields map[string]*fieldEntry, key string, m
 
 			for idx, dependency := range dependencies {
 				if idx == 0 {
-					builder.WriteString(fmt.Sprintf("'%s.%s'", dependency.FieldSetKey, dependency.FieldKey))
+					fmt.Fprintf(&builder, "'%s.%s'", dependency.FieldSetKey, dependency.FieldKey)
 				} else {
-					builder.WriteString(fmt.Sprintf(", '%s.%s'", dependency.FieldSetKey, dependency.FieldKey))
+					fmt.Fprintf(&builder, ", '%s.%s'", dependency.FieldSetKey, dependency.FieldKey)
 				}
 			}
 

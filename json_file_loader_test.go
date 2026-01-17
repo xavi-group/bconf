@@ -128,6 +128,50 @@ func TestJSONFileLoaderHelpString(t *testing.T) {
 	}
 }
 
+func TestJSONFileLoaderArrayWithCommas(t *testing.T) {
+	loaderFixture02 := loaderWithTestFixture02()
+
+	tags, found := loaderFixture02.Get("app", "tags")
+	if !found {
+		t.Fatalf("expected to find tags value")
+	}
+
+	expected := "hello, world,foo,bar, baz"
+	if tags != expected {
+		t.Fatalf("unexpected tags value '%s', expected '%s'", tags, expected)
+	}
+}
+
+func TestJSONFileLoaderCaching(t *testing.T) {
+	loader := loaderWithTestFixture01()
+
+	// First call should load files
+	appID1, found := loader.Get("app", "id")
+	if !found {
+		t.Fatalf("expected to find app id")
+	}
+
+	// Second call should use cached data
+	appID2, found := loader.Get("app", "id")
+	if !found {
+		t.Fatalf("expected to find app id on second call")
+	}
+
+	if appID1 != appID2 {
+		t.Fatalf("cached value mismatch: '%s' vs '%s'", appID1, appID2)
+	}
+
+	// Verify GetMap also uses cached data
+	appMap := loader.GetMap("app", []string{"id", "secret"})
+	if len(appMap) != 2 {
+		t.Fatalf("unexpected map length: %d", len(appMap))
+	}
+
+	if appMap["id"] != appID1 {
+		t.Fatalf("GetMap returned different value than Get: '%s' vs '%s'", appMap["id"], appID1)
+	}
+}
+
 func loaderWithTestFixture01() *bconf.JSONFileLoader {
 	return bconf.NewJSONFileLoaderWithAttributes(json.Unmarshal, "./fixtures/json_config_test_fixture_01.json")
 }
@@ -137,7 +181,7 @@ func loaderWithTestFixture02() *bconf.JSONFileLoader {
 }
 
 func loaderWithBadDecoder() *bconf.JSONFileLoader {
-	badDecoder := func(_ []byte, _ interface{}) error {
+	badDecoder := func(_ []byte, _ any) error {
 		return fmt.Errorf("decoder error")
 	}
 

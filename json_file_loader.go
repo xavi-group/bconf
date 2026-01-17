@@ -8,9 +8,7 @@ import (
 	"strings"
 )
 
-// type JSONMarshal func(v interface{}) ([]byte, error)
-
-type JSONUnmarshal func(data []byte, v interface{}) error
+type JSONUnmarshal func(data []byte, v any) error
 
 func NewJSONFileLoader() *JSONFileLoader {
 	return NewJSONFileLoaderWithAttributes(nil)
@@ -30,12 +28,14 @@ func NewJSONFileLoaderWithAttributes(decoder JSONUnmarshal, filePaths ...string)
 type JSONFileLoader struct {
 	Decoder   JSONUnmarshal
 	FilePaths []string
+	fileMaps  []map[string]any
 }
 
 func (l *JSONFileLoader) Clone() *JSONFileLoader {
 	clone := *l
 
 	clone.FilePaths = slices.Clone(l.FilePaths)
+	clone.fileMaps = nil
 
 	return &clone
 }
@@ -49,26 +49,26 @@ func (l *JSONFileLoader) Name() string {
 }
 
 func (l *JSONFileLoader) Get(fieldSetKey, fieldKey string) (string, bool) {
-	maps := l.fileMaps()
+	maps := l.getFileMaps()
 
 	if len(maps) < 1 {
 		return "", false
 	}
 
-	return l.findValueInMaps(fieldSetKey, fieldKey, &maps)
+	return l.findValueInMaps(fieldSetKey, fieldKey, maps)
 }
 
 func (l *JSONFileLoader) GetMap(fieldSetKey string, fieldKeys []string) map[string]string {
 	values := map[string]string{}
 
-	maps := l.fileMaps()
+	maps := l.getFileMaps()
 
 	if len(maps) < 1 {
 		return values
 	}
 
 	for _, fieldKey := range fieldKeys {
-		val, found := l.findValueInMaps(fieldSetKey, fieldKey, &maps)
+		val, found := l.findValueInMaps(fieldSetKey, fieldKey, maps)
 		if found {
 			values[fieldKey] = val
 		}
@@ -81,12 +81,8 @@ func (l *JSONFileLoader) HelpString(fieldSetKey, fieldKey string) string {
 	return fmt.Sprintf("JSON attribute: %s.%s", fieldSetKey, fieldKey)
 }
 
-func (l *JSONFileLoader) findValueInMaps(fieldSetKey, fieldKey string, maps *[]map[string]any) (string, bool) {
-	if maps == nil {
-		return "", false
-	}
-
-	for _, fileMap := range *maps {
+func (l *JSONFileLoader) findValueInMaps(fieldSetKey, fieldKey string, maps []map[string]any) (string, bool) {
+	for _, fileMap := range maps {
 		fieldSetAny, found := fileMap[fieldSetKey]
 		if !found {
 			continue
@@ -102,30 +98,57 @@ func (l *JSONFileLoader) findValueInMaps(fieldSetKey, fieldKey string, maps *[]m
 			continue
 		}
 
-		bytes, _ := json.Marshal(value)
-		valueString := string(bytes)
-
-		if strings.HasPrefix(valueString, "[") && strings.HasSuffix(valueString, "]") {
-			valueString = valueString[1 : len(valueString)-1]
-			valueStringSlice := strings.Split(valueString, ",")
-
-			for index, val := range valueStringSlice {
-				valueStringSlice[index] = strings.Trim(val, "\"")
-			}
-
-			valueString = strings.Join(valueStringSlice, ",")
-		} else {
-			valueString = strings.Trim(valueString, "\"")
-		}
-
-		return valueString, true
+		return l.valueToString(value), true
 	}
 
 	return "", false
 }
 
-func (l *JSONFileLoader) fileMaps() []map[string]any {
-	fileMaps := []map[string]any{}
+func (l *JSONFileLoader) valueToString(value any) string {
+	switch v := value.(type) {
+	case []any:
+		parts := make([]string, len(v))
+		for i, elem := range v {
+			parts[i] = l.scalarToString(elem)
+		}
+
+		return strings.Join(parts, ",")
+	default:
+		return l.scalarToString(value)
+	}
+}
+
+func (l *JSONFileLoader) scalarToString(value any) string {
+	switch v := value.(type) {
+	case string:
+		return v
+	case float64:
+		if v == float64(int64(v)) {
+			return fmt.Sprintf("%d", int64(v))
+		}
+
+		return fmt.Sprintf("%v", v)
+	case bool:
+		return fmt.Sprintf("%t", v)
+	case nil:
+		return ""
+	default:
+		return fmt.Sprintf("%v", v)
+	}
+}
+
+func (l *JSONFileLoader) getFileMaps() []map[string]any {
+	if l.fileMaps != nil {
+		return l.fileMaps
+	}
+
+	l.loadFileMaps()
+
+	return l.fileMaps
+}
+
+func (l *JSONFileLoader) loadFileMaps() {
+	l.fileMaps = []map[string]any{}
 
 	for _, path := range l.FilePaths {
 		fileBytes, err := os.ReadFile(path)
@@ -138,8 +161,6 @@ func (l *JSONFileLoader) fileMaps() []map[string]any {
 			continue
 		}
 
-		fileMaps = append(fileMaps, fileMap)
+		l.fileMaps = append(l.fileMaps, fileMap)
 	}
-
-	return fileMaps
 }

@@ -18,16 +18,16 @@ go get github.com/xavi-group/bconf
 alongside the code that needs it. This also makes it so that configuration is more easily re-used and composible by
 multiple applications (just like your packages should be).
 
-`bconf` accomplishes this with `bconf.FieldSets`, which provide a namespace and logical grouping for related
-configuration. Independent packages define their `bconf.FieldSets`, and then application executables can attach them
-to a `bconf.AppConfig`, which provides a unified structure for loading and retrieving configuration values.
+`bconf` accomplishes this with `FieldSets`, which provide a namespace and logical grouping for related
+configuration. Independent packages define their `FieldSets`, and then application executables can attach them
+to an `AppConfig`, which provides a unified structure for loading and retrieving configuration values.
 
-Within `bconf.FieldSets`, you define `bconf.Fields`, with each field defining the expected format and behavior of a
+Within `FieldSets`, you define `Fields`, with each field defining the expected format and behavior of a
 configuration value.
 
-Accessing configuration values can be done by calling lookup methods on a `bconf.AppConfig` with field-set and field
-keys, but it is often easier to define a configuration value structure alongside a `bconf.FieldSet`. A
-`bconf.AppConfig` can fill these configuration value structs at load time, providing easy access to precisely the
+Accessing configuration values can be done by calling lookup methods on a `AppConfig` with field-set and field
+keys, but it is often easier to define a configuration value structure alongside a `FieldSet`. A
+`AppConfig` can fill these configuration value structs at load time, providing easy access to precisely the
 values you need, where you need them.
 
 Check out the documentation and introductory examples below, and see if `bconf` is right for your project!
