@@ -48,7 +48,7 @@ func (l *JSONFileLoader) Name() string {
 	return "bconf_jsonfile"
 }
 
-func (l *JSONFileLoader) Get(fieldSetKey, fieldKey string) (string, bool) {
+func (l *JSONFileLoader) Get(fieldSetKey, fieldKey string) (any, bool) {
 	maps := l.getFileMaps()
 
 	if len(maps) < 1 {
@@ -58,8 +58,8 @@ func (l *JSONFileLoader) Get(fieldSetKey, fieldKey string) (string, bool) {
 	return l.findValueInMaps(fieldSetKey, fieldKey, maps)
 }
 
-func (l *JSONFileLoader) GetMap(fieldSetKey string, fieldKeys []string) map[string]string {
-	values := map[string]string{}
+func (l *JSONFileLoader) GetMap(fieldSetKey string, fieldKeys []string) map[string]any {
+	values := map[string]any{}
 
 	maps := l.getFileMaps()
 
@@ -81,7 +81,7 @@ func (l *JSONFileLoader) HelpString(fieldSetKey, fieldKey string) string {
 	return fmt.Sprintf("JSON attribute: %s.%s", fieldSetKey, fieldKey)
 }
 
-func (l *JSONFileLoader) findValueInMaps(fieldSetKey, fieldKey string, maps []map[string]any) (string, bool) {
+func (l *JSONFileLoader) findValueInMaps(fieldSetKey, fieldKey string, maps []map[string]any) (any, bool) {
 	for _, fileMap := range maps {
 		fieldSetAny, found := fileMap[fieldSetKey]
 		if !found {
@@ -98,13 +98,13 @@ func (l *JSONFileLoader) findValueInMaps(fieldSetKey, fieldKey string, maps []ma
 			continue
 		}
 
-		return l.valueToString(value), true
+		return l.convertValue(value), true
 	}
 
-	return "", false
+	return nil, false
 }
 
-func (l *JSONFileLoader) valueToString(value any) string {
+func (l *JSONFileLoader) convertValue(value any) any {
 	switch v := value.(type) {
 	case []any:
 		parts := make([]string, len(v))
@@ -113,9 +113,20 @@ func (l *JSONFileLoader) valueToString(value any) string {
 		}
 
 		return strings.Join(parts, ",")
+	case map[string]any:
+		return l.convertToMapStringAny(v)
 	default:
 		return l.scalarToString(value)
 	}
+}
+
+func (l *JSONFileLoader) convertToMapStringAny(m map[string]any) map[string]any {
+	result := make(map[string]any, len(m))
+	for k, v := range m {
+		result[k] = v
+	}
+
+	return result
 }
 
 func (l *JSONFileLoader) scalarToString(value any) string {

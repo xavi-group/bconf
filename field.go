@@ -1,6 +1,7 @@
 package bconf
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 	"maps"
@@ -155,6 +156,10 @@ func (f *Field) validateNoConflictingParams() []error {
 		errs = append(errs, fmt.Errorf(bconfconst.ErrorFieldRequiredWithDefault))
 	}
 
+	if len(f.Enumeration) > 0 && (f.Type == MapStringAny || f.Type == MapStringString) {
+		errs = append(errs, fmt.Errorf("enumeration is not supported for map field types"))
+	}
+
 	return errs
 }
 
@@ -290,10 +295,23 @@ func (f *Field) getValue() (any, error) {
 // 	return value, nil
 // }
 
-func (f *Field) set(loaderName, value string) error {
-	parsedValue, err := f.parseString(value)
-	if err != nil {
-		return fmt.Errorf("problem parsing value to field-type: %w", err)
+func (f *Field) set(loaderName string, value any) error {
+	var parsedValue any
+
+	if valueStr, ok := value.(string); ok {
+		var err error
+		parsedValue, err = f.parseString(valueStr)
+		if err != nil {
+			return fmt.Errorf("problem parsing value to field-type: %w", err)
+		}
+	} else if reflect.TypeOf(value).String() == f.Type {
+		parsedValue = value
+	} else {
+		return fmt.Errorf(
+			"invalid value type: expected '%s' or string, got '%s'",
+			f.Type,
+			reflect.TypeOf(value).String(),
+		)
 	}
 
 	if !f.valueInEnumeration(parsedValue) {
@@ -309,7 +327,7 @@ func (f *Field) set(loaderName, value string) error {
 	if f.fieldValue == nil {
 		f.fieldValue = map[string]any{loaderName: parsedValue}
 	} else {
-		f.fieldValue[loaderName] = value
+		f.fieldValue[loaderName] = parsedValue
 	}
 
 	if f.fieldFound == nil {
@@ -367,6 +385,10 @@ func (f *Field) parseString(value string) (any, error) {
 		return time.ParseDuration(value)
 	case Durations:
 		return f.parseToDurations(value)
+	case MapStringAny:
+		return f.parseToMapStringAny(value)
+	case MapStringString:
+		return f.parseToMapStringString(value)
 	default:
 		return "", fmt.Errorf("unsupported field type: %s", f.Type)
 	}
@@ -452,18 +474,40 @@ func (f *Field) parseToDurations(value string) ([]time.Duration, error) {
 	return values, nil
 }
 
+func (f *Field) parseToMapStringAny(value string) (map[string]any, error) {
+	result := map[string]any{}
+
+	if value == "" {
+		return result, nil
+	}
+
+	if err := json.Unmarshal([]byte(value), &result); err != nil {
+		return nil, err
+	}
+
+	return result, nil
+}
+
+func (f *Field) parseToMapStringString(value string) (map[string]string, error) {
+	result := map[string]string{}
+
+	if value == "" {
+		return result, nil
+	}
+
+	if err := json.Unmarshal([]byte(value), &result); err != nil {
+		return nil, err
+	}
+
+	return result, nil
+}
+
 func (f *Field) valueInEnumeration(value any) bool {
 	if len(f.Enumeration) < 1 {
 		return true
 	}
 
-	for _, acceptedValue := range f.Enumeration {
-		if value == acceptedValue {
-			return true
-		}
-	}
-
-	return false
+	return slices.Contains(f.Enumeration, value)
 }
 
 func (f *Field) enumerationString() string {
@@ -477,7 +521,7 @@ func (f *Field) enumerationString() string {
 				builder.WriteString(", ")
 			}
 
-			builder.WriteString(fmt.Sprintf("'%s'", value))
+			fmt.Fprintf(&builder, "'%s'", value)
 		}
 
 		builder.WriteString("]")

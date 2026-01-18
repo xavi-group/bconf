@@ -37,7 +37,7 @@ func (l *FlagLoader) Name() string {
 	return "bconf_flags"
 }
 
-func (l *FlagLoader) Get(fieldSetKey, fieldKey string) (string, bool) {
+func (l *FlagLoader) Get(fieldSetKey, fieldKey string) (any, bool) {
 	values := l.flagValues()
 
 	value, found := values[fmt.Sprintf("%s_%s", fieldSetKey, fieldKey)]
@@ -48,8 +48,8 @@ func (l *FlagLoader) Get(fieldSetKey, fieldKey string) (string, bool) {
 	return "", false
 }
 
-func (l *FlagLoader) GetMap(fieldSetKey string, fieldKeys []string) map[string]string {
-	values := map[string]string{}
+func (l *FlagLoader) GetMap(fieldSetKey string, fieldKeys []string) map[string]any {
+	values := map[string]any{}
 
 	flagValues := l.flagValues()
 

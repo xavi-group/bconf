@@ -311,6 +311,28 @@ func (c *AppConfig) GetDurations(fieldSetKey, fieldKey string) ([]time.Duration,
 	return val, nil
 }
 
+func (c *AppConfig) GetMapStringAny(fieldSetKey, fieldKey string) (map[string]any, error) {
+	fieldValue, err := c.getFieldValue(fieldSetKey, fieldKey, MapStringAny)
+	if err != nil {
+		return nil, err
+	}
+
+	val, _ := fieldValue.(map[string]any)
+
+	return val, nil
+}
+
+func (c *AppConfig) GetMapStringString(fieldSetKey, fieldKey string) (map[string]string, error) {
+	fieldValue, err := c.getFieldValue(fieldSetKey, fieldKey, MapStringString)
+	if err != nil {
+		return nil, err
+	}
+
+	val, _ := fieldValue.(map[string]string)
+
+	return val, nil
+}
+
 func (c *AppConfig) Load(options ...LoadOption) []error {
 	// -- Add field set groups --
 	groupAddErrors := []error{}
@@ -501,7 +523,6 @@ func (c *AppConfig) ConfigMap() map[string]map[string]any {
 			}
 
 			val, err := field.getValue()
-
 			if err != nil {
 				continue
 			}

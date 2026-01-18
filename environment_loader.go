@@ -31,12 +31,12 @@ func (l *EnvironmentLoader) Name() string {
 	return "bconf_environment"
 }
 
-func (l *EnvironmentLoader) Get(fieldSetKey, fieldKey string) (string, bool) {
+func (l *EnvironmentLoader) Get(fieldSetKey, fieldKey string) (any, bool) {
 	return os.LookupEnv(l.environmentKey(fmt.Sprintf("%s_%s", fieldSetKey, fieldKey)))
 }
 
-func (l *EnvironmentLoader) GetMap(fieldSetKey string, fieldKeys []string) map[string]string {
-	values := map[string]string{}
+func (l *EnvironmentLoader) GetMap(fieldSetKey string, fieldKeys []string) map[string]any {
+	values := map[string]any{}
 
 	for _, fieldKey := range fieldKeys {
 		value, found := os.LookupEnv(l.environmentKey(fmt.Sprintf("%s_%s", fieldSetKey, fieldKey)))

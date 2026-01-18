@@ -1,18 +1,20 @@
 package bconf
 
 const (
-	Bool      = "bool"
-	Bools     = "[]bool"
-	String    = "string"
-	Strings   = "[]string"
-	Int       = "int"
-	Ints      = "[]int"
-	Float     = "float64"
-	Floats    = "[]float64"
-	Time      = "time.Time"
-	Times     = "[]time.Time"
-	Duration  = "time.Duration"
-	Durations = "[]time.Duration"
+	Bool            = "bool"
+	Bools           = "[]bool"
+	String          = "string"
+	Strings         = "[]string"
+	Int             = "int"
+	Ints            = "[]int"
+	Float           = "float64"
+	Floats          = "[]float64"
+	Time            = "time.Time"
+	Times           = "[]time.Time"
+	Duration        = "time.Duration"
+	Durations       = "[]time.Duration"
+	MapStringAny    = "map[string]any"
+	MapStringString = "map[string]string"
 )
 
 func FieldTypes() []string {
@@ -29,5 +31,7 @@ func FieldTypes() []string {
 		Times,
 		Duration,
 		Durations,
+		MapStringAny,
+		MapStringString,
 	}
 }
