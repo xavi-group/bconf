@@ -1,0 +1,6 @@
+app:
+  id: "test-app-id-2"
+  tags:
+    - "hello, world"
+    - "foo"
+    - "bar, baz"

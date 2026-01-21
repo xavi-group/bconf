@@ -1,38 +1,50 @@
 package bconf
 
 import (
-	"encoding/json"
 	"fmt"
 	"maps"
 	"os"
 	"slices"
 	"strings"
+
+	"gopkg.in/yaml.v3"
 )
 
-type JSONUnmarshal func(data []byte, v any) error
+type YAMLUnmarshal func(data []byte, v any) error
 
-func NewJSONFileLoader() *JSONFileLoader {
-	return NewJSONFileLoaderWithAttributes(nil)
-}
+type YAMLFileLoaderOption func(*YAMLFileLoader)
 
-func NewJSONFileLoaderWithAttributes(decoder JSONUnmarshal, filePaths ...string) *JSONFileLoader {
-	if decoder == nil {
-		decoder = json.Unmarshal
-	}
-
-	return &JSONFileLoader{
-		Decoder:   decoder,
-		FilePaths: filePaths,
+func WithYAMLDecoder(decoder YAMLUnmarshal) YAMLFileLoaderOption {
+	return func(l *YAMLFileLoader) {
+		l.Decoder = decoder
 	}
 }
 
-type JSONFileLoader struct {
-	Decoder   JSONUnmarshal
+func WithYAMLFilePaths(paths ...string) YAMLFileLoaderOption {
+	return func(l *YAMLFileLoader) {
+		l.FilePaths = append(l.FilePaths, paths...)
+	}
+}
+
+func NewYAMLFileLoader(opts ...YAMLFileLoaderOption) *YAMLFileLoader {
+	loader := &YAMLFileLoader{
+		Decoder: yaml.Unmarshal,
+	}
+
+	for _, opt := range opts {
+		opt(loader)
+	}
+
+	return loader
+}
+
+type YAMLFileLoader struct {
+	Decoder   YAMLUnmarshal
 	FilePaths []string
 	fileMaps  []map[string]any
 }
 
-func (l *JSONFileLoader) Clone() *JSONFileLoader {
+func (l *YAMLFileLoader) Clone() *YAMLFileLoader {
 	clone := *l
 
 	clone.FilePaths = slices.Clone(l.FilePaths)
@@ -41,15 +53,15 @@ func (l *JSONFileLoader) Clone() *JSONFileLoader {
 	return &clone
 }
 
-func (l *JSONFileLoader) CloneLoader() Loader {
+func (l *YAMLFileLoader) CloneLoader() Loader {
 	return l.Clone()
 }
 
-func (l *JSONFileLoader) Name() string {
-	return "bconf_jsonfile"
+func (l *YAMLFileLoader) Name() string {
+	return "bconf_yamlfile"
 }
 
-func (l *JSONFileLoader) Get(fieldSetKey, fieldKey string) (any, bool) {
+func (l *YAMLFileLoader) Get(fieldSetKey, fieldKey string) (any, bool) {
 	maps := l.getFileMaps()
 
 	if len(maps) < 1 {
@@ -59,7 +71,7 @@ func (l *JSONFileLoader) Get(fieldSetKey, fieldKey string) (any, bool) {
 	return l.findValueInMaps(fieldSetKey, fieldKey, maps)
 }
 
-func (l *JSONFileLoader) GetMap(fieldSetKey string, fieldKeys []string) map[string]any {
+func (l *YAMLFileLoader) GetMap(fieldSetKey string, fieldKeys []string) map[string]any {
 	values := map[string]any{}
 
 	maps := l.getFileMaps()
@@ -78,11 +90,11 @@ func (l *JSONFileLoader) GetMap(fieldSetKey string, fieldKeys []string) map[stri
 	return values
 }
 
-func (l *JSONFileLoader) HelpString(fieldSetKey, fieldKey string) string {
-	return fmt.Sprintf("JSON attribute: %s.%s", fieldSetKey, fieldKey)
+func (l *YAMLFileLoader) HelpString(fieldSetKey, fieldKey string) string {
+	return fmt.Sprintf("YAML attribute: %s.%s", fieldSetKey, fieldKey)
 }
 
-func (l *JSONFileLoader) findValueInMaps(fieldSetKey, fieldKey string, maps []map[string]any) (any, bool) {
+func (l *YAMLFileLoader) findValueInMaps(fieldSetKey, fieldKey string, maps []map[string]any) (any, bool) {
 	for _, fileMap := range maps {
 		fieldSetAny, found := fileMap[fieldSetKey]
 		if !found {
@@ -105,7 +117,7 @@ func (l *JSONFileLoader) findValueInMaps(fieldSetKey, fieldKey string, maps []ma
 	return nil, false
 }
 
-func (l *JSONFileLoader) convertValue(value any) any {
+func (l *YAMLFileLoader) convertValue(value any) any {
 	switch v := value.(type) {
 	case []any:
 		parts := make([]string, len(v))
@@ -121,17 +133,19 @@ func (l *JSONFileLoader) convertValue(value any) any {
 	}
 }
 
-func (l *JSONFileLoader) convertToMapStringAny(m map[string]any) map[string]any {
+func (l *YAMLFileLoader) convertToMapStringAny(m map[string]any) map[string]any {
 	result := make(map[string]any, len(m))
 	maps.Copy(result, m)
 
 	return result
 }
 
-func (l *JSONFileLoader) scalarToString(value any) string {
+func (l *YAMLFileLoader) scalarToString(value any) string {
 	switch v := value.(type) {
 	case string:
 		return v
+	case int:
+		return fmt.Sprintf("%d", v)
 	case float64:
 		if v == float64(int64(v)) {
 			return fmt.Sprintf("%d", int64(v))
@@ -147,7 +161,7 @@ func (l *JSONFileLoader) scalarToString(value any) string {
 	}
 }
 
-func (l *JSONFileLoader) getFileMaps() []map[string]any {
+func (l *YAMLFileLoader) getFileMaps() []map[string]any {
 	if l.fileMaps != nil {
 		return l.fileMaps
 	}
@@ -157,7 +171,7 @@ func (l *JSONFileLoader) getFileMaps() []map[string]any {
 	return l.fileMaps
 }
 
-func (l *JSONFileLoader) loadFileMaps() {
+func (l *YAMLFileLoader) loadFileMaps() {
 	l.fileMaps = []map[string]any{}
 
 	for _, path := range l.FilePaths {

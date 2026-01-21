@@ -37,6 +37,7 @@ Check out the documentation and introductory examples below, and see if `bconf` 
 * Environment (`bconf.EnvironmentLoader`)
 * Flags (`bconf.FlagLoader`)
 * JSON files (`bconf.JSONFileLoader`)
+* YAML files (`bconf.YAMLFileLoader`)
 * Overrides (setter functions)
 
 ### Getting Values from `bconf.AppConfig`
@@ -54,6 +55,8 @@ Check out the documentation and introductory examples below, and see if `bconf` 
 * `GetTimes(fieldSetKey, fieldKey string) ([]time.Time, error)`
 * `GetDuration(fieldSetKey, fieldKey string) (time.Duration, error)`
 * `GetDurations(fieldSetKey, fieldKey string) ([]time.Duration, error)`
+* `GetMapStringAny(fieldSetKey, fieldKey string) (map[string]any, error)`
+* `GetMapStringString(fieldSetKey, fieldKey string) (map[string]string, error)`
 
 ### Features
 
@@ -301,9 +304,7 @@ and [github.com/xavi-group/bobotel](https://github.com/xavi-group/bobotel).
 
 ## Roadmap / Future Improvements
 
-* Additional field type support (maps)
 * File watching and notifications for configuration value updates
-* YAML files (`bconf.YAMLFileLoader`)
 * TOML files (`bconf.TOMLFileLoader`)
 * Additional `-h` / `--help` options
 * Provide common field validator functions

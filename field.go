@@ -306,6 +306,8 @@ func (f *Field) set(loaderName string, value any) error {
 		}
 	} else if reflect.TypeOf(value).String() == f.Type {
 		parsedValue = value
+	} else if converted, ok := f.tryConvertMapType(value); ok {
+		parsedValue = converted
 	} else {
 		return fmt.Errorf(
 			"invalid value type: expected '%s' or string, got '%s'",
@@ -500,6 +502,25 @@ func (f *Field) parseToMapStringString(value string) (map[string]string, error) 
 	}
 
 	return result, nil
+}
+
+func (f *Field) tryConvertMapType(value any) (any, bool) {
+	if f.Type == MapStringString {
+		if m, ok := value.(map[string]any); ok {
+			result := make(map[string]string, len(m))
+			for k, v := range m {
+				if s, ok := v.(string); ok {
+					result[k] = s
+				} else {
+					return nil, false
+				}
+			}
+
+			return result, true
+		}
+	}
+
+	return nil, false
 }
 
 func (f *Field) valueInEnumeration(value any) bool {
