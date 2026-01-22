@@ -1,15 +1,18 @@
 package bconf
 
+// NewLoadConditionBuilder creates a new load condition builder with the specified load function.
 func NewLoadConditionBuilder(loadFunc func(c FieldValueFinder) (bool, error)) LoadConditionBuilder {
 	return &loadConditionBuilder{condition: newLoadCondition(loadFunc)}
 }
 
+// LCB is a shorthand alias for NewLoadConditionBuilder.
 func LCB(loadFunc func(c FieldValueFinder) (bool, error)) LoadConditionBuilder {
 	return NewLoadConditionBuilder(loadFunc)
 }
 
 // --------------------------------------------------------------------------------------------------------------------
 
+// LoadConditionBuilder provides a fluent interface for constructing LoadCondition instances.
 type LoadConditionBuilder interface {
 	AddFieldDependencies(dependencies ...FieldLocation) LoadConditionBuilder
 	AddFieldSetDependencies(fieldSetKey string, fieldKeys ...string) LoadConditionBuilder

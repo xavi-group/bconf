@@ -12,22 +12,32 @@
 go get github.com/xavi-group/bconf
 ```
 
+### Philosophy
+
+Most configuration libraries assume centralized configuration—you define everything in one place. `bconf` inverts this: **configuration lives with the code that needs it**.
+
+This makes `bconf` particularly well-suited for:
+- **Self-documenting applications** that benefit from auto-generated help text showing all configuration options, types, defaults, and valid values
+- **Service-oriented applications** where internal packages define their own configuration requirements
+- **Package authors** building reusable components for `bconf`-based applications
+- **Applications that should fail fast** on misconfiguration rather than encountering errors at runtime
+
 ### Why `bconf`
 
 `bconf` provides tooling to write your configuration package by package. With `bconf`, configuration lives right
 alongside the code that needs it. This also makes it so that configuration is more easily re-used and composible by
 multiple applications (just like your packages should be).
 
-`bconf` accomplishes this with `bconf.FieldSets`, which provide a namespace and logical grouping for related
-configuration. Independent packages define their `bconf.FieldSets`, and then application executables can attach them
-to a `bconf.AppConfig`, which provides a unified structure for loading and retrieving configuration values.
+`bconf` accomplishes this with `FieldSets`, which provide a namespace and logical grouping for related
+configuration. Independent packages define their `FieldSets`, and then application executables can attach them
+to an `AppConfig`, which provides a unified structure for loading and retrieving configuration values.
 
-Within `bconf.FieldSets`, you define `bconf.Fields`, with each field defining the expected format and behavior of a
+Within `FieldSets`, you define `Fields`, with each field defining the expected format and behavior of a
 configuration value.
 
-Accessing configuration values can be done by calling lookup methods on a `bconf.AppConfig` with field-set and field
-keys, but it is often easier to define a configuration value structure alongside a `bconf.FieldSet`. A
-`bconf.AppConfig` can fill these configuration value structs at load time, providing easy access to precisely the
+Accessing configuration values can be done by calling lookup methods on a `AppConfig` with field-set and field
+keys, but it is often easier to define a configuration value structure alongside a `FieldSet`. A
+`AppConfig` can fill these configuration value structs at load time, providing easy access to precisely the
 values you need, where you need them.
 
 Check out the documentation and introductory examples below, and see if `bconf` is right for your project!
@@ -37,6 +47,7 @@ Check out the documentation and introductory examples below, and see if `bconf` 
 * Environment (`bconf.EnvironmentLoader`)
 * Flags (`bconf.FlagLoader`)
 * JSON files (`bconf.JSONFileLoader`)
+* YAML files (`bconf.YAMLFileLoader`)
 * Overrides (setter functions)
 
 ### Getting Values from `bconf.AppConfig`
@@ -54,11 +65,14 @@ Check out the documentation and introductory examples below, and see if `bconf` 
 * `GetTimes(fieldSetKey, fieldKey string) ([]time.Time, error)`
 * `GetDuration(fieldSetKey, fieldKey string) (time.Duration, error)`
 * `GetDurations(fieldSetKey, fieldKey string) ([]time.Duration, error)`
+* `GetMapStringAny(fieldSetKey, fieldKey string) (map[string]any, error)`
+* `GetMapStringString(fieldSetKey, fieldKey string) (map[string]string, error)`
 
 ### Features
 
 * Ability to generate default configuration values with the `bconf.Field` `DefaultGenerator` parameter
 * Ability to define custom configuration value validation with the `bconf.Field` `Validator` parameter
+* Common field validators included: `ValidateNonEmptyString`, `ValidateStringMinLength`, `ValidateURL`, `ValidatePort`, `ValidateIntRange`, `ValidateFileExists`, `ValidateDirExists`, and more
 * Ability to conditionally load a `bconf.FieldSet` by defining `bconf.LoadConditions`
 * Ability to conditionally load a `bconf.Field` by defining `bconf.LoadConditions`
 * Ability to get a safe map of configuration values from the `bconf.AppConfig` `ConfigMap()` function
@@ -299,12 +313,48 @@ If you are interested in quickly configuring your application with tracing and l
 above, consider checking out [github.com/xavi-group/bobzap](https://github.com/xavi-group/bobzap)
 and [github.com/xavi-group/bobotel](https://github.com/xavi-group/bobotel).
 
+## For Package Authors
+
+`bconf` is designed to help package authors expose configurable behavior that integrates seamlessly into any
+`bconf`-based application. The pattern is simple:
+
+1. **Export a `FieldSets()` function** that returns your package's configuration fields
+2. **Export a `NewConfig()` function** that returns a configuration struct for easy access
+3. **Provide an initialization function** that uses the loaded configuration
+
+Packages built with this pattern can be composed together—applications simply attach each package's FieldSets
+to their AppConfig, and all configuration is loaded, validated, and documented uniformly.
+
+### Examples
+
+Two packages that demonstrate this pattern:
+
+- [**bobzap**](https://github.com/xavi-group/bobzap) - Structured logging with Zap, exposing `log.level`, `log.format`, `log.color`, and other settings
+- [**bobotel**](https://github.com/xavi-group/bobotel) - OpenTelemetry tracing, exposing `otel.exporters`, `otlp.host`, `otlp.port`, and related settings
+
+Both packages define their configuration alongside their code, making them instantly usable in any `bconf` application:
+
+```go
+config.AddFieldSetGroup("bobzap", bobzap.FieldSets())
+config.AddFieldSetGroup("bobotel", bobotel.FieldSets())
+config.AttachConfigStructs(bobzap.NewConfig(), bobotel.NewConfig())
+```
+
 ## Roadmap / Future Improvements
 
-* Additional field type support (maps)
+### Documentation & Code Generation
+
+`bconf` captures rich metadata about configuration—types, defaults, descriptions, enumerations, and conditions.
+Future tooling will leverage this metadata to generate:
+
+* **Markdown documentation** - Auto-generated docs for all configuration options
+* **`.env.example` files** - Template environment files with descriptions and defaults
+* **JSON Schema** - For editor validation of JSON/YAML config files
+* **Go structs** - Generate ConfigStruct definitions from FieldSet definitions
+
+### Additional Features
+
 * File watching and notifications for configuration value updates
-* YAML files (`bconf.YAMLFileLoader`)
 * TOML files (`bconf.TOMLFileLoader`)
 * Additional `-h` / `--help` options
-* Provide common field validator functions
-* Implement `Validators` and `Transformers` on `bconf.Field`
+* Implement `Transformers` on `bconf.Field`

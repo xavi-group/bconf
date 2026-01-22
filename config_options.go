@@ -10,11 +10,13 @@ const (
 	configOptionTypeAppID             = "app_id"
 )
 
+// JSONLoaderConfigOption is a configuration option for JSON file loaders that supports custom decoders.
 type JSONLoaderConfigOption interface {
 	ConfigOption
 	WithDecoder(decoder JSONUnmarshal)
 }
 
+// ConfigOption is the interface for application configuration options passed to NewAppConfig.
 type ConfigOption interface {
 	ConfigOptionType() string
 }
@@ -45,22 +47,27 @@ func WithFlagLoader(keyPrefix ...string) ConfigOption {
 	}
 }
 
+// WithJSONFileLoader enables the JSON file loader with the specified file paths.
 func WithJSONFileLoader(filePaths ...string) JSONLoaderConfigOption {
 	return &configOptionJSONFileLoader{filePaths: filePaths}
 }
 
+// WithAppID sets a static application ID.
 func WithAppID(appID string) ConfigOption {
 	return configOptionAppID{id: appID}
 }
 
+// WithAppIDFunc sets a function to generate the application ID dynamically.
 func WithAppIDFunc(appIDFunc func() string) ConfigOption {
 	return configOptionAppIDFunc{idFunc: appIDFunc}
 }
 
+// WithAppVersion sets a static application version.
 func WithAppVersion(appVersion string) ConfigOption {
 	return configOptionAppVersion{version: appVersion}
 }
 
+// WithAppVersionFunc sets a function to generate the application version dynamically.
 func WithAppVersionFunc(appVersionFunc func() string) ConfigOption {
 	return configOptionAppVersionFunc{versionFunc: appVersionFunc}
 }

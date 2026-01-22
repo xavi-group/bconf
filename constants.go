@@ -1,20 +1,24 @@
 package bconf
 
+// Field type constants for configuration field definitions.
 const (
-	Bool      = "bool"
-	Bools     = "[]bool"
-	String    = "string"
-	Strings   = "[]string"
-	Int       = "int"
-	Ints      = "[]int"
-	Float     = "float64"
-	Floats    = "[]float64"
-	Time      = "time.Time"
-	Times     = "[]time.Time"
-	Duration  = "time.Duration"
-	Durations = "[]time.Duration"
+	Bool            = "bool"
+	Bools           = "[]bool"
+	String          = "string"
+	Strings         = "[]string"
+	Int             = "int"
+	Ints            = "[]int"
+	Float           = "float64"
+	Floats          = "[]float64"
+	Time            = "time.Time"
+	Times           = "[]time.Time"
+	Duration        = "time.Duration"
+	Durations       = "[]time.Duration"
+	MapStringAny    = "map[string]any"
+	MapStringString = "map[string]string"
 )
 
+// FieldTypes returns all supported field type constants.
 func FieldTypes() []string {
 	return []string{
 		Bool,
@@ -29,5 +33,7 @@ func FieldTypes() []string {
 		Times,
 		Duration,
 		Durations,
+		MapStringAny,
+		MapStringString,
 	}
 }

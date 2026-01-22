@@ -2,8 +2,10 @@ package bconf
 
 import "fmt"
 
+// FieldSets is a slice of FieldSet pointers.
 type FieldSets []*FieldSet
 
+// FieldSet represents a group of related configuration fields.
 type FieldSet struct {
 	fieldMap       map[string]*Field
 	Key            string
@@ -11,6 +13,7 @@ type FieldSet struct {
 	Fields         Fields
 }
 
+// Clone creates a deep copy of the FieldSet.
 func (f *FieldSet) Clone() *FieldSet {
 	clone := *f
 

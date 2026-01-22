@@ -17,11 +17,11 @@ func TestConstantsMatchReflectKinds(t *testing.T) {
 		)
 	}
 
-	if bconf.Bools != reflect.TypeOf([]bool{}).String() {
+	if bconf.Bools != reflect.TypeFor[[]bool]().String() {
 		t.Errorf(
 			"bconf '%s' does not match reflect kind '%s'",
 			bconf.Bools,
-			reflect.TypeOf([]bool{}).String(),
+			reflect.TypeFor[[]bool]().String(),
 		)
 	}
 
@@ -33,11 +33,11 @@ func TestConstantsMatchReflectKinds(t *testing.T) {
 		)
 	}
 
-	if bconf.Strings != reflect.TypeOf([]string{}).String() {
+	if bconf.Strings != reflect.TypeFor[[]string]().String() {
 		t.Errorf(
 			"bconf '%s' does not match reflect kind '%s'",
 			bconf.Strings,
-			reflect.TypeOf([]string{}).String(),
+			reflect.TypeFor[[]string]().String(),
 		)
 	}
 
@@ -49,11 +49,11 @@ func TestConstantsMatchReflectKinds(t *testing.T) {
 		)
 	}
 
-	if bconf.Ints != reflect.TypeOf([]int{}).String() {
+	if bconf.Ints != reflect.TypeFor[[]int]().String() {
 		t.Errorf(
 			"bconf '%s' does not match reflect kind '%s'",
 			bconf.Ints,
-			reflect.TypeOf([]int{}).String(),
+			reflect.TypeFor[[]int]().String(),
 		)
 	}
 
@@ -65,43 +65,43 @@ func TestConstantsMatchReflectKinds(t *testing.T) {
 		)
 	}
 
-	if bconf.Floats != reflect.TypeOf([]float64{}).String() {
+	if bconf.Floats != reflect.TypeFor[[]float64]().String() {
 		t.Errorf(
 			"bconf '%s' does not match reflect kind '%s'",
 			bconf.Ints,
-			reflect.TypeOf([]float64{}).String(),
+			reflect.TypeFor[[]float64]().String(),
 		)
 	}
 
-	if bconf.Time != reflect.TypeOf(time.Time{}).String() {
+	if bconf.Time != reflect.TypeFor[time.Time]().String() {
 		t.Errorf(
 			"bconf '%s' does not match reflect type '%s'",
 			bconf.Time,
-			reflect.TypeOf(time.Time{}).String(),
+			reflect.TypeFor[time.Time]().String(),
 		)
 	}
 
-	if bconf.Times != reflect.TypeOf([]time.Time{}).String() {
+	if bconf.Times != reflect.TypeFor[[]time.Time]().String() {
 		t.Errorf(
 			"bconf '%s' does not match reflect kind '%s'",
 			bconf.Times,
-			reflect.TypeOf([]time.Time{}).String(),
+			reflect.TypeFor[[]time.Time]().String(),
 		)
 	}
 
-	if bconf.Duration != reflect.TypeOf(time.Nanosecond).String() {
+	if bconf.Duration != reflect.TypeFor[time.Duration]().String() {
 		t.Errorf(
 			"bconf '%s' does not match reflect type '%s'",
 			bconf.Duration,
-			reflect.TypeOf(time.Nanosecond).String(),
+			reflect.TypeFor[time.Duration]().String(),
 		)
 	}
 
-	if bconf.Durations != reflect.TypeOf([]time.Duration{}).String() {
+	if bconf.Durations != reflect.TypeFor[[]time.Duration]().String() {
 		t.Errorf(
 			"bconf '%s' does not match reflect kind '%s'",
 			bconf.Durations,
-			reflect.TypeOf([]time.Duration{}).String(),
+			reflect.TypeFor[[]time.Duration]().String(),
 		)
 	}
 }

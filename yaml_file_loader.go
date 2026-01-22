@@ -1,43 +1,58 @@
 package bconf
 
 import (
-	"encoding/json"
 	"fmt"
 	"maps"
 	"os"
 	"slices"
 	"strings"
+
+	"gopkg.in/yaml.v3"
 )
 
-// JSONUnmarshal defines the function signature for JSON unmarshaling.
-type JSONUnmarshal func(data []byte, v any) error
+// YAMLUnmarshal defines the function signature for YAML unmarshaling.
+type YAMLUnmarshal func(data []byte, v any) error
 
-// NewJSONFileLoader creates a new JSON file loader with default settings.
-func NewJSONFileLoader() *JSONFileLoader {
-	return NewJSONFileLoaderWithAttributes(nil)
-}
+// YAMLFileLoaderOption is a functional option for configuring a YAMLFileLoader.
+type YAMLFileLoaderOption func(*YAMLFileLoader)
 
-// NewJSONFileLoaderWithAttributes creates a new JSON file loader with the specified decoder and file paths.
-func NewJSONFileLoaderWithAttributes(decoder JSONUnmarshal, filePaths ...string) *JSONFileLoader {
-	if decoder == nil {
-		decoder = json.Unmarshal
-	}
-
-	return &JSONFileLoader{
-		Decoder:   decoder,
-		FilePaths: filePaths,
+// WithYAMLDecoder sets a custom YAML decoder for the loader.
+func WithYAMLDecoder(decoder YAMLUnmarshal) YAMLFileLoaderOption {
+	return func(l *YAMLFileLoader) {
+		l.Decoder = decoder
 	}
 }
 
-// JSONFileLoader loads configuration values from JSON files.
-type JSONFileLoader struct {
-	Decoder   JSONUnmarshal
+// WithYAMLFilePaths adds file paths to load configuration from.
+func WithYAMLFilePaths(paths ...string) YAMLFileLoaderOption {
+	return func(l *YAMLFileLoader) {
+		l.FilePaths = append(l.FilePaths, paths...)
+	}
+}
+
+// NewYAMLFileLoader creates a new YAML file loader with the given options.
+// If no decoder is provided, yaml.Unmarshal from gopkg.in/yaml.v3 is used.
+func NewYAMLFileLoader(opts ...YAMLFileLoaderOption) *YAMLFileLoader {
+	loader := &YAMLFileLoader{
+		Decoder: yaml.Unmarshal,
+	}
+
+	for _, opt := range opts {
+		opt(loader)
+	}
+
+	return loader
+}
+
+// YAMLFileLoader loads configuration values from YAML files.
+type YAMLFileLoader struct {
+	Decoder   YAMLUnmarshal
 	FilePaths []string
 	fileMaps  []map[string]any
 }
 
-// Clone creates a copy of the JSONFileLoader.
-func (l *JSONFileLoader) Clone() *JSONFileLoader {
+// Clone creates a copy of the YAMLFileLoader.
+func (l *YAMLFileLoader) Clone() *YAMLFileLoader {
 	clone := *l
 
 	clone.FilePaths = slices.Clone(l.FilePaths)
@@ -47,17 +62,17 @@ func (l *JSONFileLoader) Clone() *JSONFileLoader {
 }
 
 // CloneLoader creates a copy of the loader as a Loader interface.
-func (l *JSONFileLoader) CloneLoader() Loader {
+func (l *YAMLFileLoader) CloneLoader() Loader {
 	return l.Clone()
 }
 
 // Name returns the name of this loader.
-func (l *JSONFileLoader) Name() string {
-	return "bconf_jsonfile"
+func (l *YAMLFileLoader) Name() string {
+	return "bconf_yamlfile"
 }
 
-// Get retrieves a single field value from the loaded JSON files.
-func (l *JSONFileLoader) Get(fieldSetKey, fieldKey string) (any, bool) {
+// Get retrieves a single field value from the loaded YAML files.
+func (l *YAMLFileLoader) Get(fieldSetKey, fieldKey string) (any, bool) {
 	fileMaps := l.getFileMaps()
 
 	if len(fileMaps) < 1 {
@@ -67,8 +82,8 @@ func (l *JSONFileLoader) Get(fieldSetKey, fieldKey string) (any, bool) {
 	return l.findValueInMaps(fieldSetKey, fieldKey, fileMaps)
 }
 
-// GetMap retrieves multiple field values from the loaded JSON files.
-func (l *JSONFileLoader) GetMap(fieldSetKey string, fieldKeys []string) map[string]any {
+// GetMap retrieves multiple field values from the loaded YAML files.
+func (l *YAMLFileLoader) GetMap(fieldSetKey string, fieldKeys []string) map[string]any {
 	values := map[string]any{}
 
 	fileMaps := l.getFileMaps()
@@ -88,11 +103,11 @@ func (l *JSONFileLoader) GetMap(fieldSetKey string, fieldKeys []string) map[stri
 }
 
 // HelpString returns a help string describing where this field can be configured.
-func (l *JSONFileLoader) HelpString(fieldSetKey, fieldKey string) string {
-	return fmt.Sprintf("JSON attribute: %s.%s", fieldSetKey, fieldKey)
+func (l *YAMLFileLoader) HelpString(fieldSetKey, fieldKey string) string {
+	return fmt.Sprintf("YAML attribute: %s.%s", fieldSetKey, fieldKey)
 }
 
-func (l *JSONFileLoader) findValueInMaps(fieldSetKey, fieldKey string, fileMaps []map[string]any) (any, bool) {
+func (l *YAMLFileLoader) findValueInMaps(fieldSetKey, fieldKey string, fileMaps []map[string]any) (any, bool) {
 	for _, fileMap := range fileMaps {
 		fieldSetAny, found := fileMap[fieldSetKey]
 		if !found {
@@ -115,7 +130,7 @@ func (l *JSONFileLoader) findValueInMaps(fieldSetKey, fieldKey string, fileMaps 
 	return nil, false
 }
 
-func (l *JSONFileLoader) convertValue(value any) any {
+func (l *YAMLFileLoader) convertValue(value any) any {
 	switch v := value.(type) {
 	case []any:
 		parts := make([]string, len(v))
@@ -131,17 +146,19 @@ func (l *JSONFileLoader) convertValue(value any) any {
 	}
 }
 
-func (l *JSONFileLoader) convertToMapStringAny(m map[string]any) map[string]any {
+func (l *YAMLFileLoader) convertToMapStringAny(m map[string]any) map[string]any {
 	result := make(map[string]any, len(m))
 	maps.Copy(result, m)
 
 	return result
 }
 
-func (l *JSONFileLoader) scalarToString(value any) string {
+func (l *YAMLFileLoader) scalarToString(value any) string {
 	switch v := value.(type) {
 	case string:
 		return v
+	case int:
+		return fmt.Sprintf("%d", v)
 	case float64:
 		if v == float64(int64(v)) {
 			return fmt.Sprintf("%d", int64(v))
@@ -157,7 +174,7 @@ func (l *JSONFileLoader) scalarToString(value any) string {
 	}
 }
 
-func (l *JSONFileLoader) getFileMaps() []map[string]any {
+func (l *YAMLFileLoader) getFileMaps() []map[string]any {
 	if l.fileMaps != nil {
 		return l.fileMaps
 	}
@@ -167,7 +184,7 @@ func (l *JSONFileLoader) getFileMaps() []map[string]any {
 	return l.fileMaps
 }
 
-func (l *JSONFileLoader) loadFileMaps() {
+func (l *YAMLFileLoader) loadFileMaps() {
 	l.fileMaps = []map[string]any{}
 
 	for _, path := range l.FilePaths {
