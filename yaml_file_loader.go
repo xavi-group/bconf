@@ -10,22 +10,28 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
+// YAMLUnmarshal defines the function signature for YAML unmarshaling.
 type YAMLUnmarshal func(data []byte, v any) error
 
+// YAMLFileLoaderOption is a functional option for configuring a YAMLFileLoader.
 type YAMLFileLoaderOption func(*YAMLFileLoader)
 
+// WithYAMLDecoder sets a custom YAML decoder for the loader.
 func WithYAMLDecoder(decoder YAMLUnmarshal) YAMLFileLoaderOption {
 	return func(l *YAMLFileLoader) {
 		l.Decoder = decoder
 	}
 }
 
+// WithYAMLFilePaths adds file paths to load configuration from.
 func WithYAMLFilePaths(paths ...string) YAMLFileLoaderOption {
 	return func(l *YAMLFileLoader) {
 		l.FilePaths = append(l.FilePaths, paths...)
 	}
 }
 
+// NewYAMLFileLoader creates a new YAML file loader with the given options.
+// If no decoder is provided, yaml.Unmarshal from gopkg.in/yaml.v3 is used.
 func NewYAMLFileLoader(opts ...YAMLFileLoaderOption) *YAMLFileLoader {
 	loader := &YAMLFileLoader{
 		Decoder: yaml.Unmarshal,
@@ -38,12 +44,14 @@ func NewYAMLFileLoader(opts ...YAMLFileLoaderOption) *YAMLFileLoader {
 	return loader
 }
 
+// YAMLFileLoader loads configuration values from YAML files.
 type YAMLFileLoader struct {
 	Decoder   YAMLUnmarshal
 	FilePaths []string
 	fileMaps  []map[string]any
 }
 
+// Clone creates a copy of the YAMLFileLoader.
 func (l *YAMLFileLoader) Clone() *YAMLFileLoader {
 	clone := *l
 
@@ -53,14 +61,17 @@ func (l *YAMLFileLoader) Clone() *YAMLFileLoader {
 	return &clone
 }
 
+// CloneLoader creates a copy of the loader as a Loader interface.
 func (l *YAMLFileLoader) CloneLoader() Loader {
 	return l.Clone()
 }
 
+// Name returns the name of this loader.
 func (l *YAMLFileLoader) Name() string {
 	return "bconf_yamlfile"
 }
 
+// Get retrieves a single field value from the loaded YAML files.
 func (l *YAMLFileLoader) Get(fieldSetKey, fieldKey string) (any, bool) {
 	maps := l.getFileMaps()
 
@@ -71,6 +82,7 @@ func (l *YAMLFileLoader) Get(fieldSetKey, fieldKey string) (any, bool) {
 	return l.findValueInMaps(fieldSetKey, fieldKey, maps)
 }
 
+// GetMap retrieves multiple field values from the loaded YAML files.
 func (l *YAMLFileLoader) GetMap(fieldSetKey string, fieldKeys []string) map[string]any {
 	values := map[string]any{}
 
@@ -90,6 +102,7 @@ func (l *YAMLFileLoader) GetMap(fieldSetKey string, fieldKeys []string) map[stri
 	return values
 }
 
+// HelpString returns a help string describing where this field can be configured.
 func (l *YAMLFileLoader) HelpString(fieldSetKey, fieldKey string) string {
 	return fmt.Sprintf("YAML attribute: %s.%s", fieldSetKey, fieldKey)
 }
@@ -175,7 +188,7 @@ func (l *YAMLFileLoader) loadFileMaps() {
 	l.fileMaps = []map[string]any{}
 
 	for _, path := range l.FilePaths {
-		fileBytes, err := os.ReadFile(path)
+		fileBytes, err := os.ReadFile(path) //nolint:gosec // File paths are provided by the user
 		if err != nil {
 			continue
 		}

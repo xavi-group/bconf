@@ -32,8 +32,8 @@ func TestValidateAll(t *testing.T) {
 
 func TestValidateAny(t *testing.T) {
 	validator := bconf.ValidateAny(
-		bconf.ValidateStringRegex(`^\d+$`),       // all digits
-		bconf.ValidateStringRegex(`^[a-z]+$`),   // all lowercase
+		bconf.ValidateStringRegex(`^\d+$`),    // all digits
+		bconf.ValidateStringRegex(`^[a-z]+$`), // all lowercase
 	)
 
 	// Should pass (digits)
@@ -320,11 +320,13 @@ func TestValidateFileExists(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to create temp file: %v", err)
 	}
-	defer os.Remove(tmpFile.Name())
-	tmpFile.Close()
+
+	tmpFileName := tmpFile.Name()
+	t.Cleanup(func() { _ = os.Remove(tmpFileName) })
+	_ = tmpFile.Close()
 
 	// Should pass for existing file
-	if err := validator(tmpFile.Name()); err != nil {
+	if err := validator(tmpFileName); err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
 
@@ -338,7 +340,8 @@ func TestValidateFileExists(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to create temp dir: %v", err)
 	}
-	defer os.Remove(tmpDir)
+
+	t.Cleanup(func() { _ = os.Remove(tmpDir) })
 
 	if err := validator(tmpDir); err == nil {
 		t.Fatal("expected error for directory path")
@@ -358,7 +361,8 @@ func TestValidateDirExists(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to create temp dir: %v", err)
 	}
-	defer os.Remove(tmpDir)
+
+	t.Cleanup(func() { _ = os.Remove(tmpDir) })
 
 	// Should pass for existing directory
 	if err := validator(tmpDir); err != nil {
@@ -375,10 +379,12 @@ func TestValidateDirExists(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to create temp file: %v", err)
 	}
-	defer os.Remove(tmpFile.Name())
-	tmpFile.Close()
 
-	if err := validator(tmpFile.Name()); err == nil {
+	tmpFileName := tmpFile.Name()
+	t.Cleanup(func() { _ = os.Remove(tmpFileName) })
+	_ = tmpFile.Close()
+
+	if err := validator(tmpFileName); err == nil {
 		t.Fatal("expected error for file path")
 	}
 
@@ -396,11 +402,13 @@ func TestValidatePathExists(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to create temp file: %v", err)
 	}
-	defer os.Remove(tmpFile.Name())
-	tmpFile.Close()
+
+	tmpFileName := tmpFile.Name()
+	t.Cleanup(func() { _ = os.Remove(tmpFileName) })
+	_ = tmpFile.Close()
 
 	// Should pass for file
-	if err := validator(tmpFile.Name()); err != nil {
+	if err := validator(tmpFileName); err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
 
@@ -409,7 +417,8 @@ func TestValidatePathExists(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to create temp dir: %v", err)
 	}
-	defer os.Remove(tmpDir)
+
+	t.Cleanup(func() { _ = os.Remove(tmpDir) })
 
 	// Should pass for directory
 	if err := validator(tmpDir); err != nil {

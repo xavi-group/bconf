@@ -31,11 +31,12 @@ func ValidateAny(validators ...FieldValidator) FieldValidator {
 		var lastErr error
 
 		for _, v := range validators {
-			if err := v(value); err == nil {
+			err := v(value)
+			if err == nil {
 				return nil
-			} else {
-				lastErr = err
 			}
+
+			lastErr = err
 		}
 
 		return lastErr
@@ -60,32 +61,32 @@ func ValidateNonEmptyString() FieldValidator {
 	}
 }
 
-// ValidateStringMinLength returns a validator that ensures a string has at least min characters.
-func ValidateStringMinLength(min int) FieldValidator {
+// ValidateStringMinLength returns a validator that ensures a string has at least minLen characters.
+func ValidateStringMinLength(minLen int) FieldValidator {
 	return func(value any) error {
 		s, ok := value.(string)
 		if !ok {
 			return fmt.Errorf("expected string, got %T", value)
 		}
 
-		if len(s) < min {
-			return fmt.Errorf("string length %d is less than minimum %d", len(s), min)
+		if len(s) < minLen {
+			return fmt.Errorf("string length %d is less than minimum %d", len(s), minLen)
 		}
 
 		return nil
 	}
 }
 
-// ValidateStringMaxLength returns a validator that ensures a string has at most max characters.
-func ValidateStringMaxLength(max int) FieldValidator {
+// ValidateStringMaxLength returns a validator that ensures a string has at most maxLen characters.
+func ValidateStringMaxLength(maxLen int) FieldValidator {
 	return func(value any) error {
 		s, ok := value.(string)
 		if !ok {
 			return fmt.Errorf("expected string, got %T", value)
 		}
 
-		if len(s) > max {
-			return fmt.Errorf("string length %d exceeds maximum %d", len(s), max)
+		if len(s) > maxLen {
+			return fmt.Errorf("string length %d exceeds maximum %d", len(s), maxLen)
 		}
 
 		return nil
@@ -160,48 +161,48 @@ func ValidateURLWithSchemes(schemes ...string) FieldValidator {
 
 // Int Validators
 
-// ValidateIntMin returns a validator that ensures an int is at least min.
-func ValidateIntMin(min int) FieldValidator {
+// ValidateIntMin returns a validator that ensures an int is at least minVal.
+func ValidateIntMin(minVal int) FieldValidator {
 	return func(value any) error {
 		i, ok := value.(int)
 		if !ok {
 			return fmt.Errorf("expected int, got %T", value)
 		}
 
-		if i < min {
-			return fmt.Errorf("value %d is less than minimum %d", i, min)
+		if i < minVal {
+			return fmt.Errorf("value %d is less than minimum %d", i, minVal)
 		}
 
 		return nil
 	}
 }
 
-// ValidateIntMax returns a validator that ensures an int is at most max.
-func ValidateIntMax(max int) FieldValidator {
+// ValidateIntMax returns a validator that ensures an int is at most maxVal.
+func ValidateIntMax(maxVal int) FieldValidator {
 	return func(value any) error {
 		i, ok := value.(int)
 		if !ok {
 			return fmt.Errorf("expected int, got %T", value)
 		}
 
-		if i > max {
-			return fmt.Errorf("value %d exceeds maximum %d", i, max)
+		if i > maxVal {
+			return fmt.Errorf("value %d exceeds maximum %d", i, maxVal)
 		}
 
 		return nil
 	}
 }
 
-// ValidateIntRange returns a validator that ensures an int is within [min, max].
-func ValidateIntRange(min, max int) FieldValidator {
+// ValidateIntRange returns a validator that ensures an int is within [minVal, maxVal].
+func ValidateIntRange(minVal, maxVal int) FieldValidator {
 	return func(value any) error {
 		i, ok := value.(int)
 		if !ok {
 			return fmt.Errorf("expected int, got %T", value)
 		}
 
-		if i < min || i > max {
-			return fmt.Errorf("value %d is not in range [%d, %d]", i, min, max)
+		if i < minVal || i > maxVal {
+			return fmt.Errorf("value %d is not in range [%d, %d]", i, minVal, maxVal)
 		}
 
 		return nil
@@ -312,8 +313,8 @@ func ValidateNonEmptySlice() FieldValidator {
 	}
 }
 
-// ValidateSliceMinLength returns a validator that ensures a slice has at least min elements.
-func ValidateSliceMinLength(min int) FieldValidator {
+// ValidateSliceMinLength returns a validator that ensures a slice has at least minLen elements.
+func ValidateSliceMinLength(minLen int) FieldValidator {
 	return func(value any) error {
 		var length int
 
@@ -328,16 +329,16 @@ func ValidateSliceMinLength(min int) FieldValidator {
 			return fmt.Errorf("expected slice type, got %T", value)
 		}
 
-		if length < min {
-			return fmt.Errorf("slice length %d is less than minimum %d", length, min)
+		if length < minLen {
+			return fmt.Errorf("slice length %d is less than minimum %d", length, minLen)
 		}
 
 		return nil
 	}
 }
 
-// ValidateSliceMaxLength returns a validator that ensures a slice has at most max elements.
-func ValidateSliceMaxLength(max int) FieldValidator {
+// ValidateSliceMaxLength returns a validator that ensures a slice has at most maxLen elements.
+func ValidateSliceMaxLength(maxLen int) FieldValidator {
 	return func(value any) error {
 		var length int
 
@@ -352,8 +353,8 @@ func ValidateSliceMaxLength(max int) FieldValidator {
 			return fmt.Errorf("expected slice type, got %T", value)
 		}
 
-		if length > max {
-			return fmt.Errorf("slice length %d exceeds maximum %d", length, max)
+		if length > maxLen {
+			return fmt.Errorf("slice length %d exceeds maximum %d", length, maxLen)
 		}
 
 		return nil

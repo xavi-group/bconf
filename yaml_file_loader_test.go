@@ -22,12 +22,8 @@ func TestYAMLFileLoaderDefaults(t *testing.T) {
 }
 
 func TestYAMLFileLoaderWithOptions(t *testing.T) {
-	customDecoder := func(data []byte, v any) error {
-		return yaml.Unmarshal(data, v)
-	}
-
 	loader := bconf.NewYAMLFileLoader(
-		bconf.WithYAMLDecoder(customDecoder),
+		bconf.WithYAMLDecoder(yaml.Unmarshal),
 		bconf.WithYAMLFilePaths("./fixtures/yaml_config_test_fixture_01.yaml"),
 	)
 

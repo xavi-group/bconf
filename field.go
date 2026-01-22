@@ -505,22 +505,27 @@ func (f *Field) parseToMapStringString(value string) (map[string]string, error) 
 }
 
 func (f *Field) tryConvertMapType(value any) (any, bool) {
-	if f.Type == MapStringString {
-		if m, ok := value.(map[string]any); ok {
-			result := make(map[string]string, len(m))
-			for k, v := range m {
-				if s, ok := v.(string); ok {
-					result[k] = s
-				} else {
-					return nil, false
-				}
-			}
-
-			return result, true
-		}
+	if f.Type != MapStringString {
+		return nil, false
 	}
 
-	return nil, false
+	m, ok := value.(map[string]any)
+	if !ok {
+		return nil, false
+	}
+
+	result := make(map[string]string, len(m))
+
+	for k, v := range m {
+		s, ok := v.(string)
+		if !ok {
+			return nil, false
+		}
+
+		result[k] = s
+	}
+
+	return result, true
 }
 
 func (f *Field) valueInEnumeration(value any) bool {
