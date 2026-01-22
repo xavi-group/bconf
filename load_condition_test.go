@@ -65,6 +65,7 @@ func TestLoadConditionGetFieldDependencies(t *testing.T) {
 	}
 }
 
+//nolint:dupl // Test code intentionally follows similar patterns for each type
 func TestLoadConditionGetString(t *testing.T) {
 	condition := bconf.LCB(func(_ bconf.FieldValueFinder) (bool, error) {
 		return true, nil
@@ -167,6 +168,7 @@ func TestLoadConditionGetStrings(t *testing.T) {
 	}
 }
 
+//nolint:dupl // Test code intentionally follows similar patterns for each type
 func TestLoadConditionGetInt(t *testing.T) {
 	condition := bconf.LCB(func(_ bconf.FieldValueFinder) (bool, error) {
 		return true, nil

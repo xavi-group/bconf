@@ -51,6 +51,7 @@ type Field struct {
 	Sensitive bool
 }
 
+// Clone creates a deep copy of the Field.
 func (f *Field) Clone() *Field {
 	clone := *f
 

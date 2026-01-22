@@ -6,19 +6,23 @@ import (
 	"strings"
 )
 
+// NewFlagLoader creates a new flag loader without a key prefix.
 func NewFlagLoader() *FlagLoader {
 	return NewFlagLoaderWithKeyPrefix("")
 }
 
+// NewFlagLoaderWithKeyPrefix creates a new flag loader with the specified key prefix.
 func NewFlagLoaderWithKeyPrefix(keyPrefix string) *FlagLoader {
 	return &FlagLoader{KeyPrefix: keyPrefix}
 }
 
+// FlagLoader loads configuration values from command-line flags.
 type FlagLoader struct {
 	KeyPrefix      string
 	OverrideLookup []string
 }
 
+// Clone creates a copy of the FlagLoader.
 func (l *FlagLoader) Clone() *FlagLoader {
 	clone := *l
 
@@ -29,14 +33,17 @@ func (l *FlagLoader) Clone() *FlagLoader {
 	return &clone
 }
 
+// CloneLoader creates a copy of the loader as a Loader interface.
 func (l *FlagLoader) CloneLoader() Loader {
 	return l.Clone()
 }
 
+// Name returns the name of this loader.
 func (l *FlagLoader) Name() string {
 	return "bconf_flags"
 }
 
+// Get retrieves a single field value from command-line flags.
 func (l *FlagLoader) Get(fieldSetKey, fieldKey string) (any, bool) {
 	values := l.flagValues()
 
@@ -48,6 +55,7 @@ func (l *FlagLoader) Get(fieldSetKey, fieldKey string) (any, bool) {
 	return "", false
 }
 
+// GetMap retrieves multiple field values from command-line flags.
 func (l *FlagLoader) GetMap(fieldSetKey string, fieldKeys []string) map[string]any {
 	values := map[string]any{}
 
@@ -63,6 +71,7 @@ func (l *FlagLoader) GetMap(fieldSetKey string, fieldKeys []string) map[string]a
 	return values
 }
 
+// HelpString returns a help string describing where this field can be configured.
 func (l *FlagLoader) HelpString(fieldSetKey, fieldKey string) string {
 	return fmt.Sprintf("Flag argument: '--%s'", l.flagKey(fmt.Sprintf("%s_%s", fieldSetKey, fieldKey)))
 }

@@ -1,5 +1,6 @@
 package bconf
 
+// Field type constants for configuration field definitions.
 const (
 	Bool            = "bool"
 	Bools           = "[]bool"
@@ -17,6 +18,7 @@ const (
 	MapStringString = "map[string]string"
 )
 
+// FieldTypes returns all supported field type constants.
 func FieldTypes() []string {
 	return []string{
 		Bool,

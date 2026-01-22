@@ -2,6 +2,7 @@ package bconf
 
 import "time"
 
+// FieldValueFinder provides type-safe access to field values during load condition evaluation.
 type FieldValueFinder interface {
 	GetFieldDependencies() map[FieldLocation]any
 	GetFieldValue(fieldSetKey, fieldKey string) (value any, found bool)
@@ -17,10 +18,12 @@ type FieldValueFinder interface {
 	GetDurations(fieldSetKey, fieldKey string) (val []time.Duration, found bool, err error)
 }
 
+// FieldValue represents a configuration field value with its location.
 type FieldValue struct {
 	FieldValue  any
 	FieldSetKey string
 	FieldKey    string
 }
 
+// FieldValues is a slice of FieldValue.
 type FieldValues []FieldValue

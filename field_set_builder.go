@@ -1,15 +1,18 @@
 package bconf
 
+// NewFieldSetBuilder creates a new field set builder with the specified key.
 func NewFieldSetBuilder(fieldSetKey string) FieldSetBuilder {
 	return &fieldSetBuilder{fieldSet: &FieldSet{Key: fieldSetKey}}
 }
 
+// FSB is a shorthand alias for NewFieldSetBuilder.
 func FSB(fieldSetKey string) FieldSetBuilder {
 	return NewFieldSetBuilder(fieldSetKey)
 }
 
 // --------------------------------------------------------------------------------------------------------------------
 
+// FieldSetBuilder provides a fluent interface for constructing FieldSet instances.
 type FieldSetBuilder interface {
 	Fields(fields ...*Field) FieldSetBuilder
 	LoadConditions(conditions ...LoadCondition) FieldSetBuilder

@@ -2,16 +2,19 @@ package bconf
 
 import "strings"
 
+// FB is a shorthand alias for NewFieldBuilder.
 func FB(fieldKey, fieldType string) FieldBuilder {
 	return NewFieldBuilder(fieldKey, fieldType)
 }
 
+// NewFieldBuilder creates a new field builder with the specified key and type.
 func NewFieldBuilder(fieldKey, fieldType string) FieldBuilder {
 	return &fieldBuilder{field: &Field{Key: fieldKey, Type: fieldType}}
 }
 
 // --------------------------------------------------------------------------------------------------------------------
 
+// FieldBuilder provides a fluent interface for constructing Field instances.
 type FieldBuilder interface {
 	Default(value any) FieldBuilder
 	Validator(validationFunc func(fieldValue any) error) FieldBuilder

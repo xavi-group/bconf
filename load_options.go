@@ -5,14 +5,17 @@ const (
 	loadOptionTypeDisableGenerateFlag = "disable_generate_flag_handler"
 )
 
+// LoadOption is the interface for options passed to the Load method.
 type LoadOption interface {
 	LoadOptionType() string
 }
 
+// DisableHelpFlagHandler returns a LoadOption that disables the built-in help flag handler.
 func DisableHelpFlagHandler() LoadOption {
 	return loadOptionDisableHelpFlag{}
 }
 
+// DisableGenerateFlagHandler returns a LoadOption that disables the built-in generate flag handler.
 func DisableGenerateFlagHandler() LoadOption {
 	return loadOptionDisableGenerateFlag{}
 }

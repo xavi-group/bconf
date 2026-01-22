@@ -66,6 +66,7 @@ func TestYAMLFileLoaderName(t *testing.T) {
 	}
 }
 
+//nolint:dupl // Test code intentionally follows similar patterns
 func TestYAMLFileLoaderGet(t *testing.T) {
 	loaderFixture01 := yamlLoaderWithTestFixture01()
 	loaderNoFilePaths := yamlLoaderWithNoFilePaths()

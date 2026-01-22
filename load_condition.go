@@ -7,8 +7,10 @@ import (
 	"time"
 )
 
+// LoadConditions is a slice of LoadCondition interfaces.
 type LoadConditions []LoadCondition
 
+// LoadCondition defines conditions that control when a field should be loaded.
 type LoadCondition interface {
 	FieldValueFinder
 	Clone() LoadCondition
@@ -17,6 +19,7 @@ type LoadCondition interface {
 	Load(c FieldValueFinder) (bool, error)
 }
 
+// FD creates a FieldLocation with the specified field set key and field key.
 func FD(fieldSetKey, fieldKey string) FieldLocation {
 	return FieldLocation{
 		FieldSetKey: fieldSetKey,
@@ -24,11 +27,13 @@ func FD(fieldSetKey, fieldKey string) FieldLocation {
 	}
 }
 
+// FieldLocation identifies a specific field by its field set key and field key.
 type FieldLocation struct {
 	FieldSetKey string
 	FieldKey    string
 }
 
+// FieldLocations is a slice of FieldLocation.
 type FieldLocations []FieldLocation
 
 // --------------------------------------------------------------------------------------------------------------------
@@ -73,6 +78,7 @@ func (c *loadCondition) Load(loadConditionValues FieldValueFinder) (bool, error)
 	return c.loadFunc(loadConditionValues)
 }
 
+// FieldNotFoundError is the error message returned when a field is not found.
 const FieldNotFoundError = "field not found"
 
 // FieldValueFinder implementation

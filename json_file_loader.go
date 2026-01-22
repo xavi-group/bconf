@@ -9,12 +9,15 @@ import (
 	"strings"
 )
 
+// JSONUnmarshal defines the function signature for JSON unmarshaling.
 type JSONUnmarshal func(data []byte, v any) error
 
+// NewJSONFileLoader creates a new JSON file loader with default settings.
 func NewJSONFileLoader() *JSONFileLoader {
 	return NewJSONFileLoaderWithAttributes(nil)
 }
 
+// NewJSONFileLoaderWithAttributes creates a new JSON file loader with the specified decoder and file paths.
 func NewJSONFileLoaderWithAttributes(decoder JSONUnmarshal, filePaths ...string) *JSONFileLoader {
 	if decoder == nil {
 		decoder = json.Unmarshal
@@ -26,12 +29,14 @@ func NewJSONFileLoaderWithAttributes(decoder JSONUnmarshal, filePaths ...string)
 	}
 }
 
+// JSONFileLoader loads configuration values from JSON files.
 type JSONFileLoader struct {
 	Decoder   JSONUnmarshal
 	FilePaths []string
 	fileMaps  []map[string]any
 }
 
+// Clone creates a copy of the JSONFileLoader.
 func (l *JSONFileLoader) Clone() *JSONFileLoader {
 	clone := *l
 
@@ -41,35 +46,39 @@ func (l *JSONFileLoader) Clone() *JSONFileLoader {
 	return &clone
 }
 
+// CloneLoader creates a copy of the loader as a Loader interface.
 func (l *JSONFileLoader) CloneLoader() Loader {
 	return l.Clone()
 }
 
+// Name returns the name of this loader.
 func (l *JSONFileLoader) Name() string {
 	return "bconf_jsonfile"
 }
 
+// Get retrieves a single field value from the loaded JSON files.
 func (l *JSONFileLoader) Get(fieldSetKey, fieldKey string) (any, bool) {
-	maps := l.getFileMaps()
+	fileMaps := l.getFileMaps()
 
-	if len(maps) < 1 {
+	if len(fileMaps) < 1 {
 		return "", false
 	}
 
-	return l.findValueInMaps(fieldSetKey, fieldKey, maps)
+	return l.findValueInMaps(fieldSetKey, fieldKey, fileMaps)
 }
 
+// GetMap retrieves multiple field values from the loaded JSON files.
 func (l *JSONFileLoader) GetMap(fieldSetKey string, fieldKeys []string) map[string]any {
 	values := map[string]any{}
 
-	maps := l.getFileMaps()
+	fileMaps := l.getFileMaps()
 
-	if len(maps) < 1 {
+	if len(fileMaps) < 1 {
 		return values
 	}
 
 	for _, fieldKey := range fieldKeys {
-		val, found := l.findValueInMaps(fieldSetKey, fieldKey, maps)
+		val, found := l.findValueInMaps(fieldSetKey, fieldKey, fileMaps)
 		if found {
 			values[fieldKey] = val
 		}
@@ -78,12 +87,13 @@ func (l *JSONFileLoader) GetMap(fieldSetKey string, fieldKeys []string) map[stri
 	return values
 }
 
+// HelpString returns a help string describing where this field can be configured.
 func (l *JSONFileLoader) HelpString(fieldSetKey, fieldKey string) string {
 	return fmt.Sprintf("JSON attribute: %s.%s", fieldSetKey, fieldKey)
 }
 
-func (l *JSONFileLoader) findValueInMaps(fieldSetKey, fieldKey string, maps []map[string]any) (any, bool) {
-	for _, fileMap := range maps {
+func (l *JSONFileLoader) findValueInMaps(fieldSetKey, fieldKey string, fileMaps []map[string]any) (any, bool) {
+	for _, fileMap := range fileMaps {
 		fieldSetAny, found := fileMap[fieldSetKey]
 		if !found {
 			continue
@@ -161,7 +171,7 @@ func (l *JSONFileLoader) loadFileMaps() {
 	l.fileMaps = []map[string]any{}
 
 	for _, path := range l.FilePaths {
-		fileBytes, err := os.ReadFile(path)
+		fileBytes, err := os.ReadFile(path) //nolint:gosec // File paths are provided by the user
 		if err != nil {
 			continue
 		}

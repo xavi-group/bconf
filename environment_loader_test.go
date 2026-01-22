@@ -2,7 +2,6 @@ package bconf_test
 
 import (
 	"fmt"
-	"os"
 	"strings"
 	"testing"
 
@@ -35,8 +34,8 @@ func TestEnvironmentLoaderGetMap(t *testing.T) {
 	appIDEnvironmentVariable := strings.ToUpper(fmt.Sprintf("%s_%s", appFieldSetKey, idFieldKey))
 	appSecretEnvironmentVariable := strings.ToUpper(fmt.Sprintf("%s_%s", appFieldSetKey, secretFieldKey))
 
-	os.Setenv(appIDEnvironmentVariable, appIDValue)
-	os.Setenv(appSecretEnvironmentVariable, appSecretValue)
+	t.Setenv(appIDEnvironmentVariable, appIDValue)
+	t.Setenv(appSecretEnvironmentVariable, appSecretValue)
 
 	loader := bconf.NewEnvironmentLoader()
 
@@ -62,8 +61,8 @@ func TestEnvironmentLoader(t *testing.T) {
 	envSessionTokenKey := strings.ToUpper(fmt.Sprintf("%s_%s", sessionFieldSet, sessionTokenKey))
 	envLogLevelKey := strings.ToUpper(fmt.Sprintf("%s_%s", logFieldSet, logLevelKey))
 
-	os.Setenv(envSessionTokenKey, sessionKeyValue)
-	os.Setenv(envLogLevelKey, logLevelValue)
+	t.Setenv(envSessionTokenKey, sessionKeyValue)
+	t.Setenv(envLogLevelKey, logLevelValue)
 
 	l := bconf.EnvironmentLoader{}
 	clone := l.Clone()
@@ -129,8 +128,8 @@ func TestEnvironmentLoaderWithKeyPrefix(t *testing.T) {
 	envSessionKey := strings.ToUpper(fmt.Sprintf("%s_%s_%s", keyPrefix, sessionFieldSet, sessionTokenKey))
 	envLogLevelKey := strings.ToUpper(fmt.Sprintf("%s_%s_%s", keyPrefix, logFieldSet, logLevelKey))
 
-	os.Setenv(envSessionKey, sessionKeyValue)
-	os.Setenv(envLogLevelKey, logLevelValue)
+	t.Setenv(envSessionKey, sessionKeyValue)
+	t.Setenv(envLogLevelKey, logLevelValue)
 
 	l := bconf.EnvironmentLoader{
 		KeyPrefix: keyPrefix,

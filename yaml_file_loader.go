@@ -73,27 +73,27 @@ func (l *YAMLFileLoader) Name() string {
 
 // Get retrieves a single field value from the loaded YAML files.
 func (l *YAMLFileLoader) Get(fieldSetKey, fieldKey string) (any, bool) {
-	maps := l.getFileMaps()
+	fileMaps := l.getFileMaps()
 
-	if len(maps) < 1 {
+	if len(fileMaps) < 1 {
 		return "", false
 	}
 
-	return l.findValueInMaps(fieldSetKey, fieldKey, maps)
+	return l.findValueInMaps(fieldSetKey, fieldKey, fileMaps)
 }
 
 // GetMap retrieves multiple field values from the loaded YAML files.
 func (l *YAMLFileLoader) GetMap(fieldSetKey string, fieldKeys []string) map[string]any {
 	values := map[string]any{}
 
-	maps := l.getFileMaps()
+	fileMaps := l.getFileMaps()
 
-	if len(maps) < 1 {
+	if len(fileMaps) < 1 {
 		return values
 	}
 
 	for _, fieldKey := range fieldKeys {
-		val, found := l.findValueInMaps(fieldSetKey, fieldKey, maps)
+		val, found := l.findValueInMaps(fieldSetKey, fieldKey, fileMaps)
 		if found {
 			values[fieldKey] = val
 		}
@@ -107,8 +107,8 @@ func (l *YAMLFileLoader) HelpString(fieldSetKey, fieldKey string) string {
 	return fmt.Sprintf("YAML attribute: %s.%s", fieldSetKey, fieldKey)
 }
 
-func (l *YAMLFileLoader) findValueInMaps(fieldSetKey, fieldKey string, maps []map[string]any) (any, bool) {
-	for _, fileMap := range maps {
+func (l *YAMLFileLoader) findValueInMaps(fieldSetKey, fieldKey string, fileMaps []map[string]any) (any, bool) {
+	for _, fileMap := range fileMaps {
 		fieldSetAny, found := fileMap[fieldSetKey]
 		if !found {
 			continue

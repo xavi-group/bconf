@@ -57,6 +57,7 @@ func TestJSONFileLoaderName(t *testing.T) {
 	}
 }
 
+//nolint:dupl // Test code intentionally follows similar patterns
 func TestJSONFileLoaderGet(t *testing.T) {
 	loaderFixture01 := loaderWithTestFixture01()
 	loaderNoFilePaths := loaderWithNoFilePaths()

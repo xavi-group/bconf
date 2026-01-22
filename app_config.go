@@ -1,3 +1,6 @@
+// Package bconf provides a package-scoped configuration management system for Go applications.
+// It supports multiple configuration sources including environment variables, command-line flags,
+// JSON files, and YAML files, with type-safe access to configuration values.
 package bconf
 
 import (
@@ -133,42 +136,50 @@ type AppConfig struct {
 	loaded           bool
 }
 
+// AppName returns the configured application name.
 func (c *AppConfig) AppName() string {
 	name, _ := c.GetString("app", "name")
 
 	return name
 }
 
+// AppDescription returns the configured application description.
 func (c *AppConfig) AppDescription() string {
 	description, _ := c.GetString("app", "description")
 
 	return description
 }
 
+// AppVersion returns the configured application version.
 func (c *AppConfig) AppVersion() string {
 	version, _ := c.GetString("app", "version")
 
 	return version
 }
 
+// AppID returns the configured application ID.
 func (c *AppConfig) AppID() string {
 	id, _ := c.GetString("app", "id")
 
 	return id
 }
 
+// AddFieldSetGroup adds a named group of field sets to the configuration.
 func (c *AppConfig) AddFieldSetGroup(groupName string, fieldSets FieldSets) {
 	c.fieldSetGroups = append(c.fieldSetGroups, &fieldSetGroup{name: groupName, fieldSets: fieldSets})
 }
 
+// AttachConfigStructs attaches struct pointers that will be filled with configuration values during Load.
 func (c *AppConfig) AttachConfigStructs(configStructs ...any) {
 	c.fillStructs = append(c.fillStructs, configStructs...)
 }
 
+// AddFieldSet adds a single field set to the configuration.
 func (c *AppConfig) AddFieldSet(fieldSet *FieldSet) {
 	c.fieldSetGroups = append(c.fieldSetGroups, &fieldSetGroup{name: fieldSet.Key, fieldSets: FieldSets{fieldSet}})
 }
 
+// GetField retrieves a field by its field set key and field key.
 func (c *AppConfig) GetField(fieldSetKey, fieldKey string) (*Field, error) {
 	fieldSet, found := c.fieldSets[fieldSetKey]
 	if !found {
@@ -183,6 +194,7 @@ func (c *AppConfig) GetField(fieldSetKey, fieldKey string) (*Field, error) {
 	return field, nil
 }
 
+// SetField sets a field value by its field set key and field key, overriding any loaded value.
 func (c *AppConfig) SetField(fieldSetKey, fieldKey string, fieldValue any) error {
 	fieldSet, fieldSetFound := c.fieldSets[fieldSetKey]
 	if !fieldSetFound {
@@ -201,6 +213,7 @@ func (c *AppConfig) SetField(fieldSetKey, fieldKey string, fieldValue any) error
 	return nil
 }
 
+// GetString retrieves a string field value.
 func (c *AppConfig) GetString(fieldSetKey, fieldKey string) (string, error) {
 	fieldValue, err := c.getFieldValue(fieldSetKey, fieldKey, String)
 	if err != nil {
@@ -212,6 +225,7 @@ func (c *AppConfig) GetString(fieldSetKey, fieldKey string) (string, error) {
 	return val, nil
 }
 
+// GetStrings retrieves a string slice field value.
 func (c *AppConfig) GetStrings(fieldSetKey, fieldKey string) ([]string, error) {
 	fieldValue, err := c.getFieldValue(fieldSetKey, fieldKey, Strings)
 	if err != nil {
@@ -223,6 +237,7 @@ func (c *AppConfig) GetStrings(fieldSetKey, fieldKey string) ([]string, error) {
 	return val, nil
 }
 
+// GetInt retrieves an integer field value.
 func (c *AppConfig) GetInt(fieldSetKey, fieldKey string) (int, error) {
 	fieldValue, err := c.getFieldValue(fieldSetKey, fieldKey, Int)
 	if err != nil {
@@ -234,6 +249,7 @@ func (c *AppConfig) GetInt(fieldSetKey, fieldKey string) (int, error) {
 	return val, nil
 }
 
+// GetInts retrieves an integer slice field value.
 func (c *AppConfig) GetInts(fieldSetKey, fieldKey string) ([]int, error) {
 	fieldValue, err := c.getFieldValue(fieldSetKey, fieldKey, Ints)
 	if err != nil {
@@ -245,6 +261,7 @@ func (c *AppConfig) GetInts(fieldSetKey, fieldKey string) ([]int, error) {
 	return val, nil
 }
 
+// GetBool retrieves a boolean field value.
 func (c *AppConfig) GetBool(fieldSetKey, fieldKey string) (bool, error) {
 	fieldValue, err := c.getFieldValue(fieldSetKey, fieldKey, Bool)
 	if err != nil {
@@ -256,6 +273,7 @@ func (c *AppConfig) GetBool(fieldSetKey, fieldKey string) (bool, error) {
 	return val, nil
 }
 
+// GetBools retrieves a boolean slice field value.
 func (c *AppConfig) GetBools(fieldSetKey, fieldKey string) ([]bool, error) {
 	fieldValue, err := c.getFieldValue(fieldSetKey, fieldKey, Bools)
 	if err != nil {
@@ -267,6 +285,7 @@ func (c *AppConfig) GetBools(fieldSetKey, fieldKey string) ([]bool, error) {
 	return val, nil
 }
 
+// GetTime retrieves a time.Time field value.
 func (c *AppConfig) GetTime(fieldSetKey, fieldKey string) (time.Time, error) {
 	fieldValue, err := c.getFieldValue(fieldSetKey, fieldKey, Time)
 	if err != nil {
@@ -278,6 +297,7 @@ func (c *AppConfig) GetTime(fieldSetKey, fieldKey string) (time.Time, error) {
 	return val, nil
 }
 
+// GetTimes retrieves a time.Time slice field value.
 func (c *AppConfig) GetTimes(fieldSetKey, fieldKey string) ([]time.Time, error) {
 	fieldValue, err := c.getFieldValue(fieldSetKey, fieldKey, Times)
 	if err != nil {
@@ -289,6 +309,7 @@ func (c *AppConfig) GetTimes(fieldSetKey, fieldKey string) ([]time.Time, error) 
 	return val, nil
 }
 
+// GetDuration retrieves a time.Duration field value.
 func (c *AppConfig) GetDuration(fieldSetKey, fieldKey string) (time.Duration, error) {
 	fieldValue, err := c.getFieldValue(fieldSetKey, fieldKey, Duration)
 	if err != nil {
@@ -300,6 +321,7 @@ func (c *AppConfig) GetDuration(fieldSetKey, fieldKey string) (time.Duration, er
 	return val, nil
 }
 
+// GetDurations retrieves a time.Duration slice field value.
 func (c *AppConfig) GetDurations(fieldSetKey, fieldKey string) ([]time.Duration, error) {
 	fieldValue, err := c.getFieldValue(fieldSetKey, fieldKey, Durations)
 	if err != nil {
@@ -311,6 +333,7 @@ func (c *AppConfig) GetDurations(fieldSetKey, fieldKey string) ([]time.Duration,
 	return val, nil
 }
 
+// GetMapStringAny retrieves a map[string]any field value.
 func (c *AppConfig) GetMapStringAny(fieldSetKey, fieldKey string) (map[string]any, error) {
 	fieldValue, err := c.getFieldValue(fieldSetKey, fieldKey, MapStringAny)
 	if err != nil {
@@ -322,6 +345,7 @@ func (c *AppConfig) GetMapStringAny(fieldSetKey, fieldKey string) (map[string]an
 	return val, nil
 }
 
+// GetMapStringString retrieves a map[string]string field value.
 func (c *AppConfig) GetMapStringString(fieldSetKey, fieldKey string) (map[string]string, error) {
 	fieldValue, err := c.getFieldValue(fieldSetKey, fieldKey, MapStringString)
 	if err != nil {
@@ -333,6 +357,7 @@ func (c *AppConfig) GetMapStringString(fieldSetKey, fieldKey string) (map[string
 	return val, nil
 }
 
+// Load loads configuration values from all configured loaders and validates fields.
 func (c *AppConfig) Load(options ...LoadOption) []error {
 	// -- Add field set groups --
 	groupAddErrors := []error{}
@@ -400,6 +425,7 @@ func (c *AppConfig) Load(options ...LoadOption) []error {
 	return nil
 }
 
+// FillStruct populates a struct's fields with configuration values based on bconf tags.
 func (c *AppConfig) FillStruct(configStruct any) (err error) {
 	defer func() {
 		if r := recover(); r != nil {
@@ -507,6 +533,7 @@ func (c *AppConfig) FillStruct(configStruct any) (err error) {
 	return nil
 }
 
+// ConfigMap returns a nested map of all configuration values organized by field set and field key.
 func (c *AppConfig) ConfigMap() map[string]map[string]any {
 	configMap := map[string]map[string]any{}
 
@@ -550,10 +577,12 @@ func (c *AppConfig) ConfigMap() map[string]map[string]any {
 	return configMap
 }
 
+// Warnings returns any warnings generated during configuration loading.
 func (c *AppConfig) Warnings() []string {
 	return slices.Clone(c.warnings)
 }
 
+// HelpString returns a formatted help string describing all configuration options.
 func (c *AppConfig) HelpString() string {
 	maxCharLength := 100
 	builder := strings.Builder{}
